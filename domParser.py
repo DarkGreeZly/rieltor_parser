@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import sqlalchemy as db
 from sqlalchemy.orm import sessionmaker
 import json
+from sqlalchemy import select
 
 MAIN_URL = 'https://rieltor.ua'
 urls_parameters = ['flats-sale/',
@@ -22,6 +23,8 @@ def create_base(engine):
     rieltor_data = db.Table("rieltor_data", metadata,
                             db.Column("id", db.Integer, primary_key=True),
                             db.Column("city", db.String),
+                            db.Column("region", db.String),
+                            db.Column("street", db.String),
                             db.Column("price", db.String),
                             db.Column("rooms", db.String),
                             db.Column("floors", db.String),
@@ -32,7 +35,8 @@ def create_base(engine):
                             db.Column("longitude", db.String),
                             db.Column("latitude", db.String),
                             db.Column("rieltor_id", db.String),
-                            db.Column("option", db.String))
+                            db.Column("option", db.String),
+                            db.Column("phone_number", db.String))
     metadata.create_all(engine)
     return rieltor_data
 
@@ -56,7 +60,7 @@ def get_obls(cities):
     return obls
 
 
-def template_cards(city, max_page, option, rieltor_data, connection):
+def template_cards(city, option, rieltor_data, connection):
     def get_prices(card):
         price = card.find('strong', class_='catalog-card-price-title')
         return price.text
@@ -103,31 +107,42 @@ def template_cards(city, max_page, option, rieltor_data, connection):
             images.append(img['data-src'])
         return images
 
-    for page in range(1, max_page):
-        html = requests.get(MAIN_URL + city + option + "?page=" + str(page))
-        soup = BeautifulSoup(html.text, 'html.parser')
-        for card in soup.findAll('div', class_='catalog-card'):
-            price = get_prices(card)
-            info = get_flat_info(card)
-            markers = get_markers(card)
-            agency = get_agency(card)
-            images = get_image(card)
-            lg = card['data-longitude']
-            lt = card['data-latitude']
-            id = card['data-catalog-item-id']
-            city_name = city.strip('/')
-            # for deserialization use json.loads(markers)
-            insertion_query = rieltor_data.insert().values(
-                city=city_name, price=price, rooms=info['room'], floors=info['floor'], meters=info['meter'],
-                markers=json.dumps(markers), agency=agency,
-                image=json.dumps(images), longitude=lg, latitude=lt, rieltor_id=id, option=option)
-            connection.execute(insertion_query)
-            connection.commit()
-            # select_query = rieltor_data.select()
-            # selection_result = connection.execute(select_query)
-            # for row in selection_result.fetchall():
-            #     print(row)
+    def get_street(card):
+        street = card.find('div', class_='catalog-card-address')
+        return street.text
 
+    def get_region(card):
+        region = card.find('div', class_='catalog-card-region')
+        return region.text
+
+    def get_phone(card):
+        phone = card.find('div', class_='hide catalog-card-author-phones')
+        phone_number = phone.find('a')
+        return phone_number.text
+
+    html = requests.get(MAIN_URL + city + option)
+    soup = BeautifulSoup(html.text, 'html.parser')
+    for card in soup.findAll('div', class_='catalog-card'):
+        phone = get_phone(card)
+        price = get_prices(card)
+        info = get_flat_info(card)
+        markers = get_markers(card)
+        agency = get_agency(card)
+        images = get_image(card)
+        street = get_street(card)
+        region = get_region(card)
+        region = region.split().join(' ')
+        lg = card['data-longitude']
+        lt = card['data-latitude']
+        id = card['data-catalog-item-id']
+        city_name = city.strip('/')
+        # for deserialization use json.loads(markers)
+        insertion_query = rieltor_data.insert().values(
+            city=city_name, region=region, street=street, price=price, rooms=info['room'], floors=info['floor'], meters=info['meter'],
+            markers=json.dumps(markers), agency=agency,
+            image=json.dumps(images), longitude=lg, latitude=lt, rieltor_id=id, option=option, phone_number=phone)
+        connection.execute(insertion_query)
+        connection.commit()
 
 
 def get_page_count(city):
@@ -147,19 +162,22 @@ if __name__ == '__main__':
     global rieltor_data
     rieltor_data = create_base(engine)
     connection = engine.connect()
-    for city in cities:
-        for option in urls_parameters:
-            try:
-                max_page = get_page_count(city)
-                template_cards(city, max_page, option, rieltor_data, connection)
-            except Exception:
-                time.sleep(10)
-                pass
-    for obl in obls:
-        for option in urls_parameters:
-            try:
-                max_page = get_page_count(obl)
-                template_cards(obl, max_page, option, rieltor_data, connection)
-            except Exception:
-                time.sleep(10)
-                pass
+    while True:
+        delete_query = db.delete(rieltor_data)
+        connection.execute(delete_query)
+        connection.commit()
+        for city in cities:
+            for option in urls_parameters:
+                try:
+                    template_cards(city, option, rieltor_data, connection)
+                except Exception:
+                    time.sleep(10)
+                    pass
+        for obl in obls:
+            for option in urls_parameters:
+                try:
+                    template_cards(obl, option, rieltor_data, connection)
+                except Exception:
+                    time.sleep(10)
+                    pass
+        time.sleep(3600)
