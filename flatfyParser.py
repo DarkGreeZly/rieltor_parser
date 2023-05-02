@@ -86,9 +86,10 @@ if __name__ == '__main__':
     city = ''
     selection_query = db.select(table)
     selection_result = connection.execute(selection_query)
-    with open('streets.json', 'w', encoding='utf8') as f:
-        json.dump(get_micro_dists(), f, ensure_ascii=False)
+    with open('streets.json', 'w', encoding='utf8') as fs:
+        json.dump(get_street(), fs, ensure_ascii=False)
     for row in selection_result.fetchall():
         if city != row[1]:
             city = row[1]
-
+            with open('admin_districts.json', 'w', encoding='utf8') as f:
+                json.dump(get_admin_dist(city), f, ensure_ascii=False)
