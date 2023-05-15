@@ -219,27 +219,35 @@ def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, op
     temp_time = doc['datatime'][0] + " " + doc['datatime'][1]
     if temp_time >= current_time:
         if 'typeEstate' in doc['buttons']:
-            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
-                'Оренда'] and option != 'flats-rent/':
-                return False
-
-            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
-                'Продаж'] and option != 'flats-sale/':
-                return False
-
-            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Оренда'] and \
-                    doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-rent/newhouse':
-                return False
-            else:
-                if new_building == {}:
+            if 'Усі Варіанти' in doc['buttons']['typeHouse']:
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                    'Оренда'] and (option != 'flats-rent/' or option != 'flats-rent/newhouse'):
+                    return False
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                    'Продаж'] and (option != 'flats-sale/' or option != 'flats-sale/newhouse'):
                     return False
 
-            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Продаж'] and \
-                    doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-sale/newhouse':
-                return False
-            else:
-                if new_building == {}:
+            if 'Вторинна' in doc['buttons']['typeHouse']:
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                    'Оренда'] and option != 'flats-rent/':
                     return False
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                    'Продаж'] and option != 'flats-sale/':
+                    return False
+            if 'Новобудова' in doc['buttons']['typeHouse']:
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Оренда'] and \
+                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-rent/newhouse':
+                    return False
+                else:
+                    if new_building == {}:
+                        return False
+                if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Продаж'] and \
+                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-sale/newhouse':
+                    return False
+                else:
+                    if new_building == {}:
+                        return False
+
 
             if 'buildingFloor' in doc['input']:
                 floor = re.findall("\d+", floor)
@@ -315,12 +323,12 @@ def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, op
 
             if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
                 return False
-
-            if role == 'Власник':
-                if role not in doc['buttons']['role']:
+            if 'role' in doc['buttons']:
+                if role == 'Власник':
+                    if role not in doc['buttons']['role']:
+                        return False
+                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
                     return False
-            elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                return False
 
             if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
                 return False
@@ -411,14 +419,6 @@ async def web_app(message: types.Message):
     selection_result = connection.execute(select_query)
     doc = check_id(message.from_user.id)
 
-    details = InlineKeyboardButton(text="Детальніше", callback_data="details")
-    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data="phone_num")
-    change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
-    stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
-    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-    more = InlineKeyboardButton(text="Показати ще", callback_data="more")
-    mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop, share, more)
     breaking = False
     rows = selection_result.fetchall()
 
@@ -450,6 +450,15 @@ async def web_app(message: types.Message):
                                         option=row[-2], street=row[4], metro=metro, room=row[6],
                                         new_building=new_building, commission=commission, land_area=row[9],
                                         landmark=landmark):
+                    details = InlineKeyboardButton(text="Детальніше", callback_data="details")
+                    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                    phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                     callback_data=cb_inline.new(action="phone_num", data=row[-1]))
+                    change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
+                    stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
+                    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                    more = InlineKeyboardButton(text="Показати ще", callback_data="more")
+                    mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop, share, more)
                     if temp % 6 != 0:
                         for image in images:
                             if count < len(images) and count < 10:
@@ -472,72 +481,6 @@ async def web_app(message: types.Message):
                         breaking = True
                         temp += 1
                         break
-        elif breaking:
-            break
-
-
-async def card(message: types.Message):
-    global current_row, temp, not_checked
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
-    select_query = db.select(rieltor_table)
-    selection_result = connection.execute(select_query)
-
-    details = InlineKeyboardButton(text="Детальніше", callback_data="details")
-    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data="phone_num")
-    change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
-    stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
-    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-    more = InlineKeyboardButton(text="Показати ще", callback_data="more")
-    mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop, share, more)
-    breaking = False
-    rows = selection_result.fetchall()
-
-    for check_row in rows:
-        if check_row == current_row:
-            for row_num in range(temp, len(rows)):
-                if temp % 6 != 0:
-                    row = rows[row_num]
-                    not_checked = len(rows) - temp
-                    current_row = row
-
-                    images = json.loads(row[-6])
-                    media = types.MediaGroup()
-                    count = 0
-                    markers = json.loads(row[-8])
-                    metro = ''
-                    new_building = ''
-                    landmark = ''
-                    commission = ''
-                    if 'metro' in markers:
-                        metro = markers['metro']
-                    if 'newhouse' in markers:
-                        new_building = markers['newhouse']
-                    if 'landmark' in markers:
-                        landmark = markers['landmark']
-                    if 'commission' in markers:
-                        commission = markers['commission']
-                    for image in images:
-                        if count < 10:
-                            media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
-                                                                                    f"📍Розташування: {row[3]}\n"
-                                                                                    f"📫{row[4]}\n"
-                                                                                    f"Ⓜ️{metro}\n" if metro != '' else ''
-                                                                                                                       f"🏢{row[7]}\n"
-                                                                                                                       f"📈Площа: {row[8]}\n"
-                                                                                                                       f"🛏{row[6]}\n"
-                                                                                                                       f"💰Ціна:{row[5]}\n"
-                                                                                                                       f"👥{row[-7]}\n📞{row[-1]}" if count == 0 else ''))
-                        elif count == 10:
-                            temp += 1
-                            await bot.send_media_group(message.from_user.id, media=media)
-                            await bot.send_message(message.from_user.id, f'📌ID:{row[-3]} меню', reply_markup=mar)
-                        elif count > 10:
-                            break
-                        count += 1
-                else:
-                    breaking = True
-                    break
         elif breaking:
             break
 
@@ -624,8 +567,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                                                         f"📈Площа: {row[5]}\n"
                                                                         f"🛏{row[3]}\n"
                                                                         f"💰Ціна:{row[2]}\n"
-                                                                        f"👥{row[7]}\n📞<spoiler>{row[-1]}</spoiler>" if count == 0 else '',
-                                                         parse_mode='html'))
+                                                                        f"👥{row[7]}\n📞<spoiler>{row[-1]}</spoiler>" if count == 0 else ''))
             elif count == 10:
                 media_message = await bot.send_media_group(callback_query.from_user.id, media=media)
                 message_id = media_message[0]
@@ -660,6 +602,11 @@ async def del_fav(callback_query: types.CallbackQuery, callback_data):
     mes = await bot.send_message(callback_query.from_user.id, "Оголошення видалено з Обране")
     time.sleep(10)
     await bot.delete_message(callback_query.from_user.id, mes.message_id)
+
+
+@dp.callback_query_handler(text="phone_num")
+async def phone_num(callback_query: types.CallbackQuery, callback_data):
+    await bot.edit_message_text()
 
 
 @dp.callback_query_handler(text="error")
