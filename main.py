@@ -113,7 +113,6 @@ async def search_menu(callback_query: types.CallbackQuery):
     search_by_params = KeyboardButton(text="Пошук за параметрами",
                                       web_app=WebAppInfo(
                                           url=f"https://testwebform142125.000webhostapp.com/FormFirst/idUser/{callback_query.from_user.id}"))
-    # url=f"https://testwebform142125.000webhostapp.com/FormFirst/idUser/{callback_query.from_user.id}"))  , callback_data="search_by_params"
     if len(selection_result.fetchall()) != 0:
         favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
     else:
@@ -219,350 +218,187 @@ def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, op
     false_count = 0
     temp_time = doc['datatime'][0] + " " + doc['datatime'][1]
     if temp_time >= current_time:
-        if city_name == doc['GEO']['currentCity']:
-            # flats
-            if (doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
-                'Оренда'] and option == 'flats-rent/') or (
-                    doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
-                'Продаж'] and option == 'flats-sale/'):
-                if (doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Оренда'] and
-                    doc['buttons']['typeHouse'] == ['Новобудова'] and option == 'flats-rent/newhouse') or (
-                        doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Продаж'] and
-                        doc['buttons']['typeHouse'] == ['Новобудова'] and option == 'flats-sale/newhouse'):
-                    if new_building == {}:
-                        false_count += 1
-                if 'buildingFloor' in doc['input']:
-                    floor = re.findall("\d+", floor)
-                    floors = [int(i) for i in doc['input']['buildingFloor']]
-                    desired_floors = [int(i) for i in doc['input']['desiredFloor']]
-                    if doc['buttons']['floorCount'] == 'Окрім п’ятиповерхових будинків' and floor[1] != 5:
-                        if int(floor[1]) in range(floors[0], floors[1]):
-                            if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
-                                false_count += 1
-                        else:
-                            false_count += 1
-                    elif int(floor[1]) in range(floors[0], floors[1]):
-                        if int(floor[0]) in range(desired_floors[0], desired_floors[1]):
-                            false_count += 1
-                    elif 'Не останій' in doc['buttons']['floor']:
-                        if int(floor[0]) == floors[1]:
-                            false_count += 1
-                    elif 'Не перший' in doc['buttons']['floor']:
-                        if int(floor[0]) == 1:
-                            false_count += 1
-                    elif 'Не перший і не останій' in doc['buttons']['floor']:
-                        if int(floor[0]) == 1 and int(floor[0]) == floors[1]:
-                            false_count += 1
-                    elif 'Тільки останій' in doc['buttons']['floor']:
-                        if int(floor[0]) != floors[1]:
-                            false_count += 1
-                    else:
-                        false_count += 1
-                if 'totalArea' in doc['input']:
-                    area = re.findall("\d+", area)
-                    area = [int(i) for i in area]
-                    areas = [int(i) for i in doc['input']['totalArea']]
-                    if sum(area) not in range(areas[0], areas[1]):
-                        false_count += 1
+        if 'typeEstate' in doc['buttons']:
+            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                'Оренда'] and option != 'flats-rent/':
+                return False
 
-                if 'cost' in doc['input']:
-                    if doc['buttons']['section'] == ['Оренда'] and (option == 'flats-rent/' or option == 'flats-rent/newhouse'):
+            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
+                'Продаж'] and option != 'flats-sale/':
+                return False
+
+            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Оренда'] and \
+                    doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-rent/newhouse':
+                return False
+            else:
+                if new_building == {}:
+                    return False
+
+            if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Продаж'] and \
+                    doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-sale/newhouse':
+                return False
+            else:
+                if new_building == {}:
+                    return False
+
+            if 'buildingFloor' in doc['input']:
+                floor = re.findall("\d+", floor)
+                floors = [int(i) for i in doc['input']['buildingFloor']]
+                desired_floors = [int(i) for i in doc['input']['desiredFloor']]
+                if doc['buttons']['floorCount'] == 'Окрім п’ятиповерхових будинків' and floor[1] != 5:
+                    if int(floor[1]) in range(floors[0], floors[1]):
+                        if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
+                            return False
+                    else:
+                        return False
+                if int(floor[1]) not in range(floors[0], floors[1]):
+                    if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
+                        return False
+                if 'Не останій' in doc['buttons']['floor']:
+                    if int(floor[0]) == floors[1]:
+                        return False
+                if 'Не перший' in doc['buttons']['floor']:
+                    if int(floor[0]) == 1:
+                        return False
+                if 'Не перший і не останій' in doc['buttons']['floor']:
+                    if int(floor[0]) == 1 and int(floor[0]) == floors[1]:
+                        return False
+                if 'Тільки останій' in doc['buttons']['floor']:
+                    if int(floor[0]) != floors[1]:
+                        return False
+
+            if 'totalArea' in doc['input']:
+                area = re.findall("\d+", area)
+                area = [int(i) for i in area]
+                areas = [int(i) for i in doc['input']['totalArea']]
+                if sum(area) not in range(areas[0], areas[1]):
+                    return False
+
+            if 'cost' in doc['input']:
+                if doc['buttons']['section'] == ['Оренда'] and (
+                        option == 'flats-rent/' or option == 'flats-rent/newhouse'):
+                    currency = price.strip(' ')
+                    if currency[-1] == '$/міс' and doc['buttons']['typeCurrency'] == 'USD':
                         price = re.findall("\d+", price)
                         price = int(''.join(price))
                         prices = [int(i) for i in doc['input']['cost']]
                         if price not in range(prices[0], prices[1]):
-                            false_count += 1
+                            return False
                     else:
                         price = re.findall("\d+", price)
                         price = int(''.join(price))
                         prices = [int(i) for i in doc['input']['cost']]
                         if price not in range(prices[0], prices[1]):
-                            false_count += 1
+                            return False
+                else:
+                    currency = price.strip(' ')
+                    if currency[-1] == '$' and doc['buttons']['typeCurrency'] == 'UAH':
+                        price = re.findall("\d+", price)
+                        price = int(''.join(price))
+                        prices = [int(i) for i in doc['input']['cost']]
+                        if price not in range(prices[0], prices[1]):
+                            return False
+                    else:
+                        price = re.findall("\d+", price)
+                        price = int(''.join(price))
+                        prices = [int(i) for i in doc['input']['cost']]
+                        if price not in range(prices[0], prices[1]):
+                            return False
 
-                if doc['GEO']['streets'] != []:
-                    if street not in doc['GEO']['streets']:
-                        false_count += 1
-                    elif new_building not in doc['GEO']['streets']:
-                        false_count += 1
-                    elif landmark not in doc['GEO']['streets']:
-                        false_count += 1
+            if doc['GEO']['streets'] != []:
+                if street not in doc['GEO']['streets']:
+                    return False
+                elif new_building not in doc['GEO']['streets']:
+                    return False
+                elif landmark not in doc['GEO']['streets']:
+                    return False
 
-                if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
-                    false_count += 1
+            if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
+                return False
 
-                if role == 'Власник':
-                    if role not in doc['buttons']['role']:
-                        false_count += 1
-                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                    false_count += 1
+            if role == 'Власник':
+                if role not in doc['buttons']['role']:
+                    return False
+            elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
+                return False
 
-                if 'Без комісії для покупця' not in doc['buttons']['role'] and role == 'БЕЗ КОМІСІЇ':
-                    false_count += 1
+            if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
+                return False
 
+            if 'numbRooms' in doc['buttons']:
                 if doc['buttons']['numbRooms'] != []:
                     room = re.findall("\d+", room)[0]
                     if room not in doc['buttons']['numbRooms']:
-                        false_count += 1
+                        return False
                     elif doc['buttons']['numbRooms'] == '5+':
                         if int(room) < 5:
-                            false_count += 1
+                            return False
 
-                if doc['GEO']['polygon'] != {}:
-                    coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
-                    coords_keys = list(coords.keys())
-                    coords_keys.sort()
-                    coords = {i: coords[i] for i in coords_keys}
-                    lats_vect = []
-                    longs_vect = []
-                    for coord in coords.values():
-                        longs_vect.append(coord[0])
-                        lats_vect.append(coord[1])
-                    longs_lats_vect = np.column_stack((longs_vect, lats_vect))
-                    polygon = Polygon(longs_lats_vect)
-                    point = Point(long, lat)
-                    if not polygon.contains(point):
-                        false_count += 1
+            if doc['GEO']['polygon'] != {}:
+                coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
+                coords_keys = list(coords.keys())
+                coords_keys.sort()
+                coords = {i: coords[i] for i in coords_keys}
+                lats_vect = []
+                longs_vect = []
+                for coord in coords.values():
+                    longs_vect.append(coord[0])
+                    lats_vect.append(coord[1])
+                longs_lats_vect = np.column_stack((longs_vect, lats_vect))
+                polygon = Polygon(longs_lats_vect)
+                point = Point(long, lat)
+                if not polygon.contains(point):
+                    return False
 
-                if doc['GEO']['metroTime'] != []:
-                    with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
-                        metro_coordinates = metro_stations_data.read()
-                    object_location = (long, lat)
-                    metro_accepted = []
-                    for metro_stations in metro_coordinates[city_name]:
-                        metro_location = (metro_stations[metro][0], metro_stations[metro][1])
-                        if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
-                                                                                  doc['GEO']['metroTime'][1]):
-                            metro_accepted.append([station_name for station_name in metro_stations][0])
-                    if metro not in metro_accepted:
-                        false_count += 1
+            if doc['GEO']['metroTime'] != []:
+                with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
+                    metro_coordinates = metro_stations_data.read()
+                object_location = (long, lat)
+                metro_accepted = []
+                for metro_stations in metro_coordinates[city_name]:
+                    metro_location = (metro_stations[metro][0], metro_stations[metro][1])
+                    if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
+                                                                              doc['GEO']['metroTime'][1]):
+                        metro_accepted.append([station_name for station_name in metro_stations][0])
+                if metro not in metro_accepted:
+                    return False
 
-                if doc['GEO']['range'] != {}:
-                    center_coordinates = [coords for coords in doc['GEO']['range']][0]
-                    center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
-                    if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
-                        false_count += 1
+            if doc['GEO']['range'] != {}:
+                center_coordinates = [coords for coords in doc['GEO']['range']][0]
+                center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
+                if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
+                    return False
 
-            # houses
-            elif (doc['buttons']['typeEstate'] == ['Будинок'] and doc['buttons']['section'] == [
-                'Продаж'] and option == 'houses-sale/') or (
-                    doc['buttons']['typeEstate'] == ['Будинок'] and doc['buttons']['section'] == [
-                'Оренда'] and option == 'houses-rent/'):
-                if doc['buttons']['numbRooms'] != []:
-                    if room not in doc['buttons']['numbRooms']:
-                        false_count += 1
-                    elif doc['buttons']['numbRooms'] == '5+':
-                        if int(room) < 5:
-                            false_count += 1
+            if doc['buttons']['typeEstate'] == ['Будинок'] and doc['buttons']['section'] == [
+                'Продаж'] and option != 'houses-sale/':
+                return False
 
-                price = re.findall("\d+", price)
-                price = int(''.join(price))
-                prices = [int(i) for i in doc['input']['cost']]
-                if price not in range(prices[0], prices[1]):
-                    false_count += 1
+            if doc['buttons']['typeEstate'] == ['Будинок'] and doc['buttons']['section'] == [
+                'Оренда'] and option != 'houses-rent/':
+                return False
 
-                if doc['GEO']['polygon'] != {}:
-                    coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
-                    coords_keys = list(coords.keys())
-                    coords_keys.sort()
-                    coords = {i: coords[i] for i in coords_keys}
-                    lats_vect = []
-                    longs_vect = []
-                    for coord in coords.values():
-                        longs_vect.append(coord[0])
-                        lats_vect.append(coord[1])
-                    longs_lats_vect = np.column_stack((longs_vect, lats_vect))
-                    polygon = Polygon(longs_lats_vect)
-                    point = Point(long, lat)
-                    if not polygon.contains(point):
-                        false_count += 1
-
-                if doc['GEO']['metroTime'] != []:
-                    with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
-                        metro_coordinates = metro_stations_data.read()
-                    object_location = (long, lat)
-                    metro_accepted = []
-                    for metro_stations in metro_coordinates[city_name]:
-                        metro_location = (metro_stations[metro][0], metro_stations[metro][1])
-                        if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
-                                                                                  doc['GEO']['metroTime'][1]):
-                            metro_accepted.append([station_name for station_name in metro_stations][0])
-                    if metro not in metro_accepted:
-                        false_count += 1
-
-                if doc['GEO']['range'] != {}:
-                    center_coordinates = [coords for coords in doc['GEO']['range']][0]
-                    center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
-                    if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
-                        false_count += 1
-
-                if street not in doc['GEO']['streets'] and doc['GEO']['streets'] != []:
-                    false_count += 1
-
-                if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
-                    false_count += 1
-
-                area = re.findall("\d+", area)
-                area = [int(i) for i in area]
-                areas = [int(i) for i in doc['input']['totalArea']]
-                if sum(area) not in range(areas[0], areas[1]):
-                    false_count += 1
-
-                if role == 'Власник':
-                    if role not in doc['buttons']['role']:
-                        false_count += 1
-                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                    false_count += 1
-
-                if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
-                    false_count += 1
-
+            if 'landArea' in doc['input']:
                 if land_area not in range(doc['input']['landArea'][0], doc['input']['landArea'][1]):
-                    false_count += 1
+                    return False
 
-            # areas
-            elif doc['buttons']['typeEstate'] == ['Земельна Ділянка'] and doc['buttons']['section'] == [
-                'Продаж'] and option == 'areas-sale/':
-                if doc['GEO']['polygon'] != {}:
-                    coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
-                    coords_keys = list(coords.keys())
-                    coords_keys.sort()
-                    coords = {i: coords[i] for i in coords_keys}
-                    lats_vect = []
-                    longs_vect = []
-                    for coord in coords.values():
-                        longs_vect.append(coord[0])
-                        lats_vect.append(coord[1])
-                    longs_lats_vect = np.column_stack((longs_vect, lats_vect))
-                    polygon = Polygon(longs_lats_vect)
-                    point = Point(long, lat)
-                    if not polygon.contains(point):
-                        false_count += 1
+            if doc['buttons']['typeEstate'] == ['Земельна Ділянка'] and doc['buttons']['section'] == [
+                'Продаж'] and option != 'areas-sale/':
+                return False
 
-                if doc['GEO']['metroTime'] != []:
-                    with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
-                        metro_coordinates = metro_stations_data.read()
-                    object_location = (long, lat)
-                    metro_accepted = []
-                    for metro_stations in metro_coordinates[city_name]:
-                        metro_location = (metro_stations[metro][0], metro_stations[metro][1])
-                        if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
-                                                                                  doc['GEO']['metroTime'][1]):
-                            metro_accepted.append([station_name for station_name in metro_stations][0])
-                    if metro not in metro_accepted:
-                        false_count += 1
+            if doc['buttons']['typeEstate'] == ['Комерційна Нерухомість'] and doc['buttons']['section'] == [
+                'Продаж'] and option != 'commercials-sale/':
+                return False
 
-                if doc['GEO']['range'] != {}:
-                    center_coordinates = [coords for coords in doc['GEO']['range']][0]
-                    center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
-                    if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
-                        false_count += 1
+            if doc['buttons']['typeEstate'] == ['Комерційна Нерухомість'] and doc['buttons']['section'] == [
+                'Оренда'] and option != 'commercials-rent/':
+                return False
 
-                if street not in doc['GEO']['streets'] and doc['GEO']['streets'] != []:
-                    false_count += 1
-
-                if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
-                    false_count += 1
-
-                if land_area not in range(doc['input']['landArea'][0], doc['input']['landArea'][1]):
-                    false_count += 1
-
-                price = re.findall("\d+", price)
-                price = int(''.join(price))
-                prices = [int(i) for i in doc['input']['cost']]
-                if price not in range(prices[0], prices[1]):
-                    false_count += 1
-
-                if role == 'Власник':
-                    if role not in doc['buttons']['role']:
-                        false_count += 1
-                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                    false_count += 1
-
-                if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
-                    false_count += 1
-
-            # commercial
-            elif (doc['buttons']['typeEstate'] == ['Комерційна Нерухомість'] and doc['buttons']['section'] == [
-                'Продаж'] and option == 'commercials-sale/') or (
-                    doc['buttons']['typeEstate'] == ['Комерційна Нерухомість'] and doc['buttons']['section'] == [
-                'Оренда'] and option == 'commercials-rent/'):
-                if doc['GEO']['polygon'] != {}:
-                    coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
-                    coords_keys = list(coords.keys())
-                    coords_keys.sort()
-                    coords = {i: coords[i] for i in coords_keys}
-                    lats_vect = []
-                    longs_vect = []
-                    for coord in coords.values():
-                        longs_vect.append(coord[0])
-                        lats_vect.append(coord[1])
-                    longs_lats_vect = np.column_stack((longs_vect, lats_vect))
-                    polygon = Polygon(longs_lats_vect)
-                    point = Point(long, lat)
-                    if not polygon.contains(point):
-                        false_count += 1
-
-                if doc['GEO']['metroTime'] != []:
-                    with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
-                        metro_coordinates = metro_stations_data.read()
-                    object_location = (long, lat)
-                    metro_accepted = []
-                    for metro_stations in metro_coordinates[city_name]:
-                        metro_location = (metro_stations[metro][0], metro_stations[metro][1])
-                        if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
-                                                                                  doc['GEO']['metroTime'][1]):
-                            metro_accepted.append([station_name for station_name in metro_stations][0])
-                    if metro not in metro_accepted:
-                        false_count += 1
-
-                if doc['GEO']['range'] != {}:
-                    center_coordinates = [coords for coords in doc['GEO']['range']][0]
-                    center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
-                    if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
-                        false_count += 1
-
-                if street not in doc['GEO']['streets'] and doc['GEO']['streets'] != []:
-                    false_count += 1
-
-                if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
-                    false_count += 1
-
-                price = re.findall("\d+", price)
-                price = int(''.join(price))
-                prices = [int(i) for i in doc['input']['cost']]
-                if price not in range(prices[0], prices[1]):
-                    false_count += 1
-
-                if role == 'Власник':
-                    if role not in doc['buttons']['role']:
-                        false_count += 1
-                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                    false_count += 1
-
-                if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
-                    false_count += 1
-
-                area = re.findall("\d+", area)
-                area = [int(i) for i in area]
-                areas = [int(i) for i in doc['input']['totalArea']]
-                if sum(area) not in range(areas[0], areas[1]):
-                    false_count += 1
-
+            if 'floorsHouse' in doc['input'] or 'floorCommercial' in doc['input']:
                 if floor not in range(doc['input']['floorsHouse'][0],
-                                      doc['input']['floorsHouse'][1] or floor not in range(
-                                          doc['input']['floorCommercial'][0], doc['input']['floorCommercial'][1])):
-                    false_count += 1
-            else:
-                false_count += 1
-        else:
-            false_count += 1
-        if false_count > 0:
-            return False
-        else:
-            return True
-
-    # get objects from database and sort them using filter from web-form, then add this data to list and send to method
-    # of handling objects and bot sending
+                                      doc['input']['floorsHouse'][1]) or floor not in range(
+                                          doc['input']['floorCommercial'][0], doc['input']['floorCommercial'][1]):
+                    return False
+        return True
 
 
 @dp.callback_query_handler(text='show_not_checked')
