@@ -95,7 +95,7 @@ async def command_start(message: types.Message):
 @dp.message_handler(commands=['add'])
 @dp.callback_query_handler(cb_inline.filter(action="start"))
 @dp.callback_query_handler(text='start')
-async def start(callback_query: types.CallbackQuery, message: types.Message, callback_data=None):
+async def start(callback_query: types.CallbackQuery, command: types.BotCommand, callback_data=None):
     # if callback_data:
     #     await bot.delete_message(callback_query.from_user.id, callback_query.message.message_id)
     global count_of_coins
@@ -106,9 +106,8 @@ async def start(callback_query: types.CallbackQuery, message: types.Message, cal
     for user in selection_result.fetchall():
         count_of_coins += user[-1]
     if count_of_coins >= 10:
-        data_for_form = message.from_user.id if message else callback_query.from_user.id
         sell = KeyboardButton(text="Додати оголошення", web_app=WebAppInfo(
-            url=f"https://testwebform142125.000webhostapp.com/FormSecond/idUser/{data_for_form}"))
+            url=f"https://testwebform142125.000webhostapp.com/FormSecond/idUser/{callback_query.from_user.id}"))
     else:
         sell = KeyboardButton(text="Додати оголошення", callback_data="not_enough_coins")
     wallet = InlineKeyboardButton(text="Перевірити гаманець", callback_data="wallet")
@@ -121,21 +120,21 @@ async def start(callback_query: types.CallbackQuery, message: types.Message, cal
     share = InlineKeyboardButton(text="Розповісти про бота", callback_data="share")
     help = InlineKeyboardButton(text="Звернутися в підтримку", callback_data="help")
     mar = InlineKeyboardMarkup(row_width=2).add(search, wallet, favorite, my_message, my_ann, share, help)
-    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                text="Оберіть, що ви хочете зробити?", reply_markup=mar)
-    if message:
-        mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(sell)
-        await bot.send_message(message.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
+    mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(sell)
+    if command.command == 'add':
+        await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
     else:
-        mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(sell)
+        await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                    text="Оберіть, що ви хочете зробити?", reply_markup=mar)
+
         await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
 
 
-@dp.message_handler(commands=['search'])
+@dp.message_handler(commands='search')
 @dp.callback_query_handler(text='search')
-async def search_menu(callback_query: types.CallbackQuery, message: types.Message):
+async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
-    selection_query = select(control_table).where(control_table.c.user_id == callback_query.message.from_user.id)
+    selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     print(callback_query.from_user.id)
     search_by_params = KeyboardButton(text="Пошук за параметрами",
@@ -157,31 +156,27 @@ async def search_menu(callback_query: types.CallbackQuery, message: types.Messag
     mar = InlineKeyboardMarkup(resize_keyboard=True, row_width=2).add(favorite, my_message, my_ann, stop_search,
                                                                       show_not_checked)
     mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(search_by_params)
-    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                text="Ваш вибір:", reply_markup=mar)
-    if message:
-        await bot.send_message(message.from_user.id, 'Перейти до пошуку за параметрами',
+    if command.command == 'search':
+        await bot.send_message(callback_query.from_user.id, 'Перейти до пошуку за параметрами',
                                reply_markup=mar1)
     else:
+        await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                    text="Ваш вибір:", reply_markup=mar)
+
         await bot.send_message(callback_query.from_user.id, 'Перейти до пошуку за параметрами',
                                reply_markup=mar1)
 
 
-@dp.message_handler(commands=['my_advertisements'])
 @dp.callback_query_handler(text='announcement')
 @dp.callback_query_handler(cb_inline.filter(action='search'))
-async def announcement_menu(callback_query: types.CallbackQuery, message: types.Message):
+async def announcement_menu(callback_query: types.CallbackQuery):
     sell = InlineKeyboardButton(text="Продам", callback_data="sell_ann")
     rent_out = InlineKeyboardButton(text="Оренда", callback_data="lease_ann")
     purchase = InlineKeyboardButton(text="Куплю", callback_data="buy_ann")
     rent_in = InlineKeyboardButton(text="Зніму", callback_data="rent_ann")
     mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in)
-    if message:
-        await bot.edit_message_text(chat_id=message.from_user.id, message_id=message.message_id,
-                                    text="Мої оголошення", reply_markup=mar)
-    else:
-        await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                    text="Мої оголошення", reply_markup=mar)
+    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                text="Мої оголошення", reply_markup=mar)
 
 
 @dp.callback_query_handler(text="sell_ann")
@@ -214,7 +209,7 @@ async def without_coins(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['balance'])
 @dp.callback_query_handler(text='wallet')
-async def wallet(callback_query: types.CallbackQuery, message: types.Message):
+async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand):
     global count_of_coins
     count_of_coins = 0
     control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -225,9 +220,8 @@ async def wallet(callback_query: types.CallbackQuery, message: types.Message):
     help = InlineKeyboardButton(text="Звернутися в підтримку", callback_data="help")
     back = InlineKeyboardButton(text="Назад", callback_data=cb_inline.new(action="start", data="delete"))
     mar = InlineKeyboardMarkup(row_width=2).add(help, back)
-    if message:
-        await bot.edit_message_text(f"Ви маєте: {count_of_coins} монет", callback_query.from_user.id,
-                                    callback_query.message.message_id, reply_markup=mar)
+    if command.command == 'balance':
+        await bot.send_message(callback_query.from_user.id, f"Ви маєте: {count_of_coins} монет")
     else:
         await bot.edit_message_text(f"Ви маєте: {count_of_coins} монет", callback_query.from_user.id,
                                     callback_query.message.message_id, reply_markup=mar)
@@ -247,7 +241,7 @@ async def update(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['support'])
 @dp.callback_query_handler(text='help')
-async def support(callback_query: types.CallbackQuery, message: types.Message):
+async def support(callback_query: types.CallbackQuery, command: types.BotCommand):
     pass
 
 
@@ -629,19 +623,13 @@ async def back(callback_query: types.CallbackQuery, callback_data):
 
 @dp.message_handler(commands=['share_bot'])
 @dp.callback_query_handler(text="share")
-async def share(callback_query: types.CallbackQuery, message: types.Message):
+async def share(callback_query: types.CallbackQuery):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
-    data_for_share = message.from_user.id if message else callback_query.from_user.id
-    selection_query = select(control_table).where(control_table.c.referral == data_for_share)
+    selection_query = select(control_table).where(control_table.c.referral == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
-    if message:
-        await bot.send_message(chat_id=message.from_user.id, text=f"Це твоє реферальне посилання.\n"
-                                                                     f"https://t.me/eBAZA_estate_bot?start={message.from_user.id}\n"
+    await bot.send_message(chat_id=callback_query.from_user.id, text=f"Це твоє реферальне посилання.\n"
+                                                                     f"https://t.me/eBAZA_estate_bot?start={callback_query.from_user.id}\n"
                                                                      f"Кількість рефералів: {len(selection_result.fetchall())}")
-    else:
-        await bot.send_message(chat_id=callback_query.from_user.id, text=f"Це твоє реферальне посилання.\n"
-                                                                  f"https://t.me/eBAZA_estate_bot?start={callback_query.from_user.id}\n"
-                                                                  f"Кількість рефералів: {len(selection_result.fetchall())}")
 
 
 @dp.callback_query_handler(cb_inline.filter(action="add_fav"))
@@ -657,12 +645,11 @@ async def add_fav(callback_query: types.CallbackQuery, callback_data):
 
 @dp.message_handler(commands=['favorites'])
 @dp.callback_query_handler(text='favorite')
-async def show_favorite(callback_query: types.CallbackQuery, message: types.Message):
+async def show_favorite(callback_query: types.CallbackQuery):
     global media_id
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
-    data_for_favorites = message.from_user.id if message else callback_query.from_user.id
-    control_selection = select(control_table).where(control_table.c.user_id == data_for_favorites)
+    control_selection = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     control_selection_result = connection.execute(control_selection)
 
     for control_element in control_selection_result.fetchall():
@@ -693,16 +680,10 @@ async def show_favorite(callback_query: types.CallbackQuery, message: types.Mess
                                                                         f"💰Ціна:{row[2]}\n"
                                                                         f"👥{row[7]}\n📞<spoiler>{row[-1]}</spoiler>" if count == 0 else ''))
             elif count == 10:
-                if message:
-                    media_message = await bot.send_media_group(message.from_user.id, media=media)
-                    message_id = media_message[0]
-                    media_id[row[-3]] = message_id['message_id']
-                    await bot.send_message(message.from_user.id, f'📌ID:{row[-3]} меню', reply_markup=mar)
-                else:
-                    media_message = await bot.send_media_group(callback_query.from_user.id, media=media)
-                    message_id = media_message[0]
-                    media_id[row[-3]] = message_id['message_id']
-                    await bot.send_message(callback_query.from_user.id, f'📌ID:{row[-3]} меню', reply_markup=mar)
+                media_message = await bot.send_media_group(callback_query.from_user.id, media=media)
+                message_id = media_message[0]
+                media_id[row[-3]] = message_id['message_id']
+                await bot.send_message(callback_query.from_user.id, f'📌ID:{row[-3]} меню', reply_markup=mar)
             elif count > 10:
                 break
             count += 1
