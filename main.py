@@ -656,7 +656,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
         rieltor_selection = select(rieltor_table).where(rieltor_table.c.rieltor_id == control_element[2])
         rieltor_selection_result = connection.execute(rieltor_selection)
         row = rieltor_selection_result.fetchone()
-        images = json.loads(row[8])
+        images = json.loads(row[-6])
         markers = json.loads(row[6])
         count = 0
         media = types.MediaGroup()
