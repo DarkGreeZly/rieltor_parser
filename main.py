@@ -95,7 +95,7 @@ async def command_start(message: types.Message):
 @dp.message_handler(commands=['add'])
 @dp.callback_query_handler(cb_inline.filter(action="start"))
 @dp.callback_query_handler(text='start')
-async def start(callback_query: types.CallbackQuery, command: types.BotCommand, callback_data=None):
+async def start(callback_query: types.CallbackQuery, command: types.BotCommand=None, callback_data=None):
     # if callback_data:
     #     await bot.delete_message(callback_query.from_user.id, callback_query.message.message_id)
     global count_of_coins
@@ -121,18 +121,20 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand, 
     help = InlineKeyboardButton(text="Звернутися в підтримку", callback_data="help")
     mar = InlineKeyboardMarkup(row_width=2).add(search, wallet, favorite, my_message, my_ann, share, help)
     mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(sell)
-    if command.command == 'add':
+
+    if command and command.command == 'add':
         await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
     else:
         await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                    text="Оберіть, що ви хочете зробити?", reply_markup=mar)
+                                        text="Оберіть, що ви хочете зробити?", reply_markup=mar)
 
         await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
+
 
 
 @dp.message_handler(commands='search')
 @dp.callback_query_handler(text='search')
-async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand):
+async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand=None):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
@@ -156,7 +158,8 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
     mar = InlineKeyboardMarkup(resize_keyboard=True, row_width=2).add(favorite, my_message, my_ann, stop_search,
                                                                       show_not_checked)
     mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(search_by_params)
-    if command.command == 'search':
+
+    if command and command.command == 'search':
         await bot.send_message(callback_query.from_user.id, 'Перейти до пошуку за параметрами',
                                reply_markup=mar1)
     else:
@@ -209,7 +212,7 @@ async def without_coins(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['balance'])
 @dp.callback_query_handler(text='wallet')
-async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand):
+async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand=None):
     global count_of_coins
     count_of_coins = 0
     control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -220,7 +223,7 @@ async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand)
     help = InlineKeyboardButton(text="Звернутися в підтримку", callback_data="help")
     back = InlineKeyboardButton(text="Назад", callback_data=cb_inline.new(action="start", data="delete"))
     mar = InlineKeyboardMarkup(row_width=2).add(help, back)
-    if command.command == 'balance':
+    if command and command.command == 'balance':
         await bot.send_message(callback_query.from_user.id, f"Ви маєте: {count_of_coins} монет")
     else:
         await bot.edit_message_text(f"Ви маєте: {count_of_coins} монет", callback_query.from_user.id,
@@ -241,7 +244,7 @@ async def update(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['support'])
 @dp.callback_query_handler(text='help')
-async def support(callback_query: types.CallbackQuery, command: types.BotCommand):
+async def support(callback_query: types.CallbackQuery, command: types.BotCommand=None):
     pass
 
 
