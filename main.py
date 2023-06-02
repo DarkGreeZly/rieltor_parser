@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+import requests
 
 import numpy as np
 from aiogram import Bot, Dispatcher, executor, types
@@ -16,6 +17,8 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import haversine as hs
 import datetime as dt
+import phonenumbers
+import uuid
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -35,6 +38,7 @@ media_id = {}
 not_checked = 0
 current_time = ''
 count_of_coins = 0
+phone_number = ''
 
 
 def open_rieltor_data():
@@ -48,7 +52,7 @@ def open_rieltor_data():
 
 @dp.message_handler(commands=['start'])
 async def command_start(message: types.Message):
-    start = InlineKeyboardButton(text="✅Пуск", callback_data="start")
+    start = InlineKeyboardButton(text="✅Пуск", callback_data="number_from_user")
     mar = InlineKeyboardMarkup().add(start)
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
@@ -89,13 +93,28 @@ async def command_start(message: types.Message):
                                                  "договір з власником.\n"
                                                  "За порушення правил — можливий бан!")
     time.sleep(2)
-    await bot.send_message(message.from_user.id, "Почнемо зараз?", reply_markup=mar)
+    await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону")
+
+
+@dp.message_handler()
+async def user_number(message: types.Message):
+    global phone_number
+    if message.text[0] != '/':
+        continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
+        mar = InlineKeyboardMarkup().add(continue_button)
+        check_number = phonenumbers.parse(message.text)
+        if phonenumbers.is_valid_number(check_number):
+            phone_number = message.text
+            await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
+        else:
+            await bot.send_message(message.from_user.id,
+                                   "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
 
 
 @dp.message_handler(commands=['add'])
 @dp.callback_query_handler(cb_inline.filter(action="start"))
 @dp.callback_query_handler(text='start')
-async def start(callback_query: types.CallbackQuery, command: types.BotCommand=None, callback_data=None):
+async def start(callback_query: types.CallbackQuery, command: types.BotCommand = None, callback_data=None):
     # if callback_data:
     #     await bot.delete_message(callback_query.from_user.id, callback_query.message.message_id)
     global count_of_coins
@@ -126,15 +145,14 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand=N
         await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
     else:
         await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                        text="Оберіть, що ви хочете зробити?", reply_markup=mar)
+                                    text="Оберіть, що ви хочете зробити?", reply_markup=mar)
 
         await bot.send_message(callback_query.from_user.id, "Перейти до додавання оголошення", reply_markup=mar1)
 
 
-
 @dp.message_handler(commands='search')
 @dp.callback_query_handler(text='search')
-async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand=None):
+async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
@@ -173,33 +191,101 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
 @dp.callback_query_handler(text='announcement')
 @dp.callback_query_handler(cb_inline.filter(action='search'))
 async def announcement_menu(callback_query: types.CallbackQuery):
-    sell = InlineKeyboardButton(text="Продам", callback_data="sell_ann")
-    rent_out = InlineKeyboardButton(text="Оренда", callback_data="lease_ann")
-    purchase = InlineKeyboardButton(text="Куплю", callback_data="buy_ann")
-    rent_in = InlineKeyboardButton(text="Зніму", callback_data="rent_ann")
+    fire_base = firestore.client()
+
+    collection_ref = fire_base.collection('WebFormTwo')
+    docs = collection_ref.stream()
+
+    collection_watch = collection_ref.on_snapshot(on_snapshot)
+    count_of_sells = 0
+    count_of_rents = 0
+    count_of_purchases = 0
+    count_of_leases = 0
+    for doc in docs:
+        if doc.id == callback_query.from_user.id:
+            if doc['buttons']['section'] == ['Продати']:
+                count_of_sells += 1
+            elif doc['buttons']['section'] == ['Здати в оренду']:
+                count_of_rents += 1
+            elif doc['buttons']['section'] == ['Купити']:
+                count_of_purchases += 1
+            elif doc['buttons']['section'] == ['Орендувати']:
+                count_of_leases += 1
+    if count_of_sells > 0:
+        sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data="show_ann")
+    else:
+        sell = InlineKeyboardButton(text="Продам", callback_data="empty_ann")
+    if count_of_rents > 0:
+        rent_out = InlineKeyboardButton(text=f"Оренда({count_of_rents})", callback_data="show_ann")
+    else:
+        rent_out = InlineKeyboardButton(text="Оренда", callback_data="empty_ann")
+    if count_of_purchases > 0:
+        purchase = InlineKeyboardButton(text=f"Куплю({count_of_purchases})", callback_data="show_ann")
+    else:
+        purchase = InlineKeyboardButton(text="Куплю", callback_data="empty_ann")
+    if count_of_leases > 0:
+        rent_in = InlineKeyboardButton(text=f"Зніму({count_of_leases})", callback_data="show_ann")
+    else:
+        rent_in = InlineKeyboardButton(text="Зніму", callback_data="empty_ann")
     mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Мої оголошення", reply_markup=mar)
 
 
-@dp.callback_query_handler(text="sell_ann")
+@dp.callback_query_handler(text="show_ann")
 async def sell_ann(callback_query: types.CallbackQuery):
-    pass
+    fire_base = firestore.client()
 
+    collection_ref = fire_base.collection('WebFormTwo')
+    docs = collection_ref.stream()
 
-@dp.callback_query_handler(text="lease_ann")
-async def lease_ann(callback_query: types.CallbackQuery):
-    pass
+    collection_watch = collection_ref.on_snapshot(on_snapshot)
 
-
-@dp.callback_query_handler(text="buy_ann")
-async def buy_ann(callback_query: types.CallbackQuery):
-    pass
-
-
-@dp.callback_query_handler(text="rent_ann")
-async def rent_ann(callback_query: types.CallbackQuery):
-    pass
+    for doc in docs:
+        if str(callback_query.from_user.id) == str(doc.id):
+            if doc['buttons']['section'] == ['Продати']:
+                media = types.MediaGroup()
+                for image in doc['input']['photoUrl']:
+                    media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                                                                                   f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
+                                                                                   f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                                   f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
+                                                                                   f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
+                                                                                   f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                   f"💰Ціна: {doc['input']['cost'][0]}\n"
+                                                                                   f"👥{doc['buttons']['role'][0]}"))
+            elif doc['buttons']['section'] == ['Здати в оренду']:
+                media = types.MediaGroup()
+                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                                                                               f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
+                                                                               f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                               f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
+                                                                               f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
+                                                                               f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
+                                                                               f"💰Ціна: {doc['input']['cost'][0]}\n"
+                                                                               f"👥{doc['buttons']['role'][0]}"))
+            elif doc['buttons']['section'] == ['Купити']:
+                media = types.MediaGroup()
+                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                                                                               f"📍Розташування: {doc['GEO']['currentCity']}\n"
+                                                                               f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                               f"📫{' '.join(doc['GEO']['streets'])}\n"
+                                                                               f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
+                                                                               f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
+                                                                               f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                               f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                               f"👥{doc['buttons']['role']}"))
+            elif doc['buttons']['section'] == ['Орендувати']:
+                media = types.MediaGroup()
+                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                                                                               f"📍Розташування: {doc['GEO']['currentCity']}\n"
+                                                                               f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                               f"📫{' '.join(doc['GEO']['streets'])}\n"
+                                                                               f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
+                                                                               f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
+                                                                               f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                               f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                               f"👥{doc['buttons']['role']}"))
 
 
 @dp.callback_query_handler(text='not_enough_coins')
@@ -212,7 +298,7 @@ async def without_coins(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['balance'])
 @dp.callback_query_handler(text='wallet')
-async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand=None):
+async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     global count_of_coins
     count_of_coins = 0
     control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -244,7 +330,7 @@ async def update(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['support'])
 @dp.callback_query_handler(text='help')
-async def support(callback_query: types.CallbackQuery, command: types.BotCommand=None):
+async def support(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     pass
 
 
@@ -264,7 +350,6 @@ def check_id_form1(user_id):
     docs = collection_ref.stream()
 
     collection_watch = collection_ref.on_snapshot(on_snapshot)
-    print(collection_watch)
 
     for doc in docs:
         if str(user_id) == str(doc.id):
@@ -280,7 +365,6 @@ def check_id_form2(user_id):
     docs = collection_ref.stream()
 
     collection_watch = collection_ref.on_snapshot(on_snapshot)
-    print(collection_watch)
 
     for doc in docs:
         if str(user_id) != str(doc.id):
@@ -290,25 +374,65 @@ def check_id_form2(user_id):
     return announcements
 
 
+def add_new_user(form, user_id):
+    fire_base = firestore.client()
+    if form == 'first':
+        collection_ref = fire_base.collection('authUserID').document('formOne')
+        collection_ref.set(
+            {
+                'userID': user_id,
+                'phone_number': phone_number
+            }
+        )
+    elif form == 'second':
+        unique_id = uuid.uuid4().int
+        unique_id = unique_id % 10000000000
+        collection_ref = fire_base.collection('authUserID').document('formTwo')
+        collection_ref.set(
+            {
+                'userID': user_id,
+                'phone_number': phone_number,
+                'announcement_id': unique_id
+            }
+        )
+
+
 def check_data_from_user(user_id):
+    global current_time
     filter = check_id_form1(user_id)
     announcements = check_id_form2(user_id)
+    if current_time == '':
+        current_time = dt.datetime.now() - dt.timedelta(seconds=30)
+        current_time = current_time.strftime("%H:%M:%S %Y-%m-%d")
+    temp_time = filter['datatime'][0] + " " + filter['datatime'][1]
     accepted_announcements = []
-    for announcement in announcements:
-        if not filter['input']['buildingFloor']:
-            break
+    if temp_time >= current_time:
+        for announcement in announcements:
+            if 'currentCity' in filter['GEO'] and 'currentCity' in announcement['GEO']:
+                if filter['GEO']['currentCity'] != announcement['GEO']['currentCity']:
+                    continue
+            if 'typeEstate' in filter['buttons'] and 'typeEstate' in announcement['buttons']:
+                if 'Усі Варіанти' in filter['buttons']['typeHouse']:
+                    # if filter['buttons']['typeEstate'] == ['Квартира'] and announcement['buttons']['typeEstate'] == ['Квартира']\
+                    #         and filter['buttons']['section'] == [
+                    #     'Оренда'] and (option != 'flats-rent/' and option != 'flats-rent/newhouse/'):
+                    #     return False
+                    pass
+
         # if (range(announcement['input']['areaFloor']))
 
 
-def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
-                         new_building, commission, land_area, landmark):
+def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
+            new_building, commission, land_area, landmark, city):
     global current_time
     if current_time == '':
         current_time = dt.datetime.now() - dt.timedelta(seconds=30)
         current_time = current_time.strftime("%H:%M:%S %Y-%m-%d")
-    false_count = 0
     temp_time = doc['datatime'][0] + " " + doc['datatime'][1]
     if temp_time >= current_time:
+        if 'currentCity' in doc['GEO']:
+            if doc['GEO']['currentCity'] != city:
+                return False
         if 'typeEstate' in doc['buttons']:
             if 'Усі Варіанти' in doc['buttons']['typeHouse']:
                 if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == [
@@ -338,135 +462,6 @@ def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, op
                 else:
                     if new_building == {}:
                         return False
-
-            if 'buildingFloor' in doc['input']:
-                floor = re.findall("\d+", floor)
-                floors = [int(i) for i in doc['input']['buildingFloor']]
-                desired_floors = [int(i) for i in doc['input']['desiredFloor']]
-                if doc['buttons']['floorCount'] == 'Окрім п’ятиповерхових будинків' and floor[1] != 5:
-                    if int(floor[1]) in range(floors[0], floors[1]):
-                        if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
-                            return False
-                    else:
-                        return False
-                if int(floor[1]) not in range(floors[0], floors[1]):
-                    if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
-                        return False
-                if 'Не останій' in doc['buttons']['floor']:
-                    if int(floor[0]) == floors[1]:
-                        return False
-                if 'Не перший' in doc['buttons']['floor']:
-                    if int(floor[0]) == 1:
-                        return False
-                if 'Не перший і не останій' in doc['buttons']['floor']:
-                    if int(floor[0]) == 1 and int(floor[0]) == floors[1]:
-                        return False
-                if 'Тільки останій' in doc['buttons']['floor']:
-                    if int(floor[0]) != floors[1]:
-                        return False
-
-            if 'totalArea' in doc['input']:
-                area = re.findall("\d+", area)
-                area = [int(i) for i in area]
-                areas = [int(i) for i in doc['input']['totalArea']]
-                if sum(area) not in range(areas[0], areas[1]):
-                    return False
-
-            if 'cost' in doc['input']:
-                if doc['buttons']['section'] == ['Оренда'] and (
-                        option == 'flats-rent/' or option == 'flats-rent/newhouse'):
-                    currency = price.strip(' ')
-                    if currency[-1] == '$/міс' and doc['buttons']['typeCurrency'] == 'USD':
-                        price = re.findall("\d+", price)
-                        price = int(''.join(price))
-                        prices = [int(i) for i in doc['input']['cost']]
-                        if price not in range(prices[0], prices[1]):
-                            return False
-                    else:
-                        price = re.findall("\d+", price)
-                        price = int(''.join(price))
-                        prices = [int(i) for i in doc['input']['cost']]
-                        if price not in range(prices[0], prices[1]):
-                            return False
-                else:
-                    currency = price.strip(' ')
-                    if currency[-1] == '$' and doc['buttons']['typeCurrency'] == 'UAH':
-                        price = re.findall("\d+", price)
-                        price = int(''.join(price))
-                        prices = [int(i) for i in doc['input']['cost']]
-                        if price not in range(prices[0], prices[1]):
-                            return False
-                    else:
-                        price = re.findall("\d+", price)
-                        price = int(''.join(price))
-                        prices = [int(i) for i in doc['input']['cost']]
-                        if price not in range(prices[0], prices[1]):
-                            return False
-
-            if doc['GEO']['streets'] != []:
-                if street not in doc['GEO']['streets']:
-                    return False
-                elif new_building not in doc['GEO']['streets']:
-                    return False
-                elif landmark not in doc['GEO']['streets']:
-                    return False
-
-            if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
-                return False
-            if 'role' in doc['buttons']:
-                if role == 'Власник':
-                    if role not in doc['buttons']['role']:
-                        return False
-                elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
-                    return False
-
-            if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
-                return False
-
-            if 'numbRooms' in doc['buttons']:
-                if doc['buttons']['numbRooms'] != []:
-                    room = re.findall("\d+", room)[0]
-                    if room not in doc['buttons']['numbRooms']:
-                        return False
-                    elif doc['buttons']['numbRooms'] == '5+':
-                        if int(room) < 5:
-                            return False
-
-            if doc['GEO']['polygon'] != {}:
-                coords = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())[0]]
-                coords_keys = list(coords.keys())
-                coords_keys.sort()
-                coords = {i: coords[i] for i in coords_keys}
-                lats_vect = []
-                longs_vect = []
-                for coord in coords.values():
-                    longs_vect.append(coord[0])
-                    lats_vect.append(coord[1])
-                longs_lats_vect = np.column_stack((longs_vect, lats_vect))
-                polygon = Polygon(longs_lats_vect)
-                point = Point(long, lat)
-                if not polygon.contains(point):
-                    return False
-
-            if doc['GEO']['metroTime'] != []:
-                with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
-                    metro_coordinates = metro_stations_data.read()
-                object_location = (long, lat)
-                metro_accepted = []
-                for metro_stations in metro_coordinates[city_name]:
-                    metro_location = (metro_stations[metro][0], metro_stations[metro][1])
-                    if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
-                                                                              doc['GEO']['metroTime'][1]):
-                        metro_accepted.append([station_name for station_name in metro_stations][0])
-                if metro not in metro_accepted:
-                    return False
-
-            if doc['GEO']['range'] != {}:
-                center_coordinates = [coords for coords in doc['GEO']['range']][0]
-                center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
-                if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
-                    return False
-
             if doc['buttons']['typeEstate'] == ['Будинок'] and doc['buttons']['section'] == [
                 'Продаж'] and option != 'houses-sale/':
                 return False
@@ -491,11 +486,161 @@ def rent_flat_info_check(doc, long, lat, floor, area, price, city_name, role, op
                 'Оренда'] and option != 'commercials-rent/':
                 return False
 
-            if 'floorsHouse' in doc['input'] or 'floorCommercial' in doc['input']:
-                if floor not in range(doc['input']['floorsHouse'][0],
-                                      doc['input']['floorsHouse'][1]) or floor not in range(
-                    doc['input']['floorCommercial'][0], doc['input']['floorCommercial'][1]):
+        if 'buildingFloor' in doc['input']:
+            floor = re.findall("\d+", floor)
+            floors = [int(i) for i in doc['input']['buildingFloor']]
+            desired_floors = [int(i) for i in doc['input']['desiredFloor']]
+            if doc['buttons']['floorCount'] == 'Окрім п’ятиповерхових будинків' and floor[1] != 5:
+                if int(floor[1]) in range(floors[0], floors[1]):
+                    if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
+                        return False
+                else:
                     return False
+            if int(floor[1]) not in range(floors[0], floors[1]):
+                if int(floor[0]) not in range(desired_floors[0], desired_floors[1]):
+                    return False
+            if 'Не останій' in doc['buttons']['floor']:
+                if int(floor[0]) == floors[1]:
+                    return False
+            if 'Не перший' in doc['buttons']['floor']:
+                if int(floor[0]) == 1:
+                    return False
+            if 'Не перший і не останій' in doc['buttons']['floor']:
+                if int(floor[0]) == 1 and int(floor[0]) == floors[1]:
+                    return False
+            if 'Тільки останій' in doc['buttons']['floor']:
+                if int(floor[0]) != floors[1]:
+                    return False
+
+        if 'totalArea' in doc['input']:
+            area = re.findall("\d+", area)
+            area = [int(i) for i in area]
+            areas = [int(i) for i in doc['input']['totalArea']]
+            if sum(area) not in range(areas[0], areas[1]):
+                return False
+
+        # print(doc['input']['cost'])
+        if 'cost' in doc['input']:
+            if doc['buttons']['section'] == ['Оренда'] and (
+                    option == 'flats-rent/' or option == 'flats-rent/newhouse/'):
+                currency = price.split(' ')
+                print(currency[-1])
+                # if currency[-1] == '$' and doc['buttons']['typeCurrency'] == 'USD':
+                #     price = re.findall("\d+", price)
+                #     price = int(''.join(price))
+                #     prices = [int(i) for i in doc['input']['cost']]
+                #     if price not in range(prices[0], prices[1]):
+                #         return False
+                # else:
+                if currency[-1] == '$/міс':
+                    price = re.findall("\d+", price)
+                    price = int(''.join(price))
+
+                    def convert_usd_to_uah(amount):
+                        try:
+                            response = requests.get('https://api.exchangerate-api.com/v4/latest/USD')
+                            data = response.json()
+                            exchange_rate = data['rates']['UAH']
+                            uah_amount = amount * exchange_rate
+                            return uah_amount
+                        except (requests.exceptions.RequestException, KeyError):
+                            return None
+
+                    price = convert_usd_to_uah(int(price))
+                else:
+                    price = re.findall("\d+", price)
+                    price = int(''.join(price))
+                prices = [int(i) for i in doc['input']['cost']]
+                if price not in range(prices[0], prices[1]):
+                    return False
+            else:
+                currency = price.strip(' ')
+                if currency[-1] == '$' and doc['buttons']['typeCurrency'] == 'USD':
+                    price = re.findall("\d+", price)
+                    price = int(''.join(price))
+                    prices = [int(i) for i in doc['input']['cost']]
+                    if price not in range(prices[0], prices[1]):
+                        return False
+                else:
+                    price = re.findall("\d+", price)
+                    price = int(''.join(price))
+                    prices = [int(i) for i in doc['input']['cost']]
+                    if price not in range(prices[0], prices[1]):
+                        return False
+
+        if doc['GEO']['streets'] != []:
+            if street not in doc['GEO']['streets']:
+                return False
+            elif new_building not in doc['GEO']['streets']:
+                return False
+            elif landmark not in doc['GEO']['streets']:
+                return False
+
+        if metro not in doc['GEO']['metroStation'] and doc['GEO']['metroStation'] != []:
+            return False
+        if 'role' in doc['buttons']:
+            if role == 'Власник':
+                if role not in doc['buttons']['role']:
+                    return False
+            elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
+                return False
+
+        if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
+            return False
+
+        if 'numbRooms' in doc['buttons']:
+            if doc['buttons']['numbRooms'] != []:
+                room = re.findall("\d+", room)[0]
+                if room not in doc['buttons']['numbRooms']:
+                    return False
+                elif doc['buttons']['numbRooms'] == '5+':
+                    if int(room) < 5:
+                        return False
+
+        if doc['GEO']['polygon'] != {}:
+            polygons = doc['GEO']['polygon'][list(doc['GEO']['polygon'].keys())]
+            wrong_polygon = 0
+            for key, coords in polygons:
+                coords_keys = list(coords.keys())
+                coords_keys.sort()
+                coords = {i: coords[i] for i in coords_keys}
+                lats_vect = []
+                longs_vect = []
+                for coord in coords.values():
+                    longs_vect.append(coord[0])
+                    lats_vect.append(coord[1])
+                longs_lats_vect = np.column_stack((longs_vect, lats_vect))
+                polygon = Polygon(longs_lats_vect)
+                point = Point(long, lat)
+                if not polygon.contains(point):
+                    wrong_polygon += 1
+            if wrong_polygon > 0:
+                return False
+
+        if doc['GEO']['metroTime'] != []:
+            with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
+                metro_coordinates = metro_stations_data.read()
+            object_location = (long, lat)
+            metro_accepted = []
+            for metro_stations in metro_coordinates[city_name]:
+                metro_location = (metro_stations[metro][0], metro_stations[metro][1])
+                if hs.haversine(object_location, metro_location) in range(doc['GEO']['metroTime'][0],
+                                                                          doc['GEO']['metroTime'][1]):
+                    metro_accepted.append([station_name for station_name in metro_stations][0])
+            if metro not in metro_accepted:
+                return False
+
+        if doc['GEO']['range'] != {}:
+            center_coordinates = [coords for coords in doc['GEO']['range']][0]
+            center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
+            if hs.haversine(center, (long, lat)) > [radius for key, radius in doc['GEO']['range'][0]]:
+                return False
+
+        if 'floorsHouse' in doc['input'] or 'floorCommercial' in doc['input']:
+            if floor not in range(doc['input']['floorsHouse'][0],
+                                  doc['input']['floorsHouse'][1]) or floor not in range(
+                doc['input']['floorCommercial'][0], doc['input']['floorCommercial'][1]):
+                return False
         return True
 
 
@@ -506,7 +651,7 @@ async def web_app(message: types.Message, callback_data=None):
     if callback_data == None:
         callback_data = {'data': ''}
     if str(message.web_app_data.data) == 'completed' or callback_data['data'] == 'for_ann':
-
+        # add_new_user('first', message.from_user.id)
         global current_row, temp, not_checked
         rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
         select_query = db.select(rieltor_table)
@@ -539,18 +684,20 @@ async def web_app(message: types.Message, callback_data=None):
                         landmark = markers['landmark']
                     if 'commission' in markers:
                         commission = markers['commission']
-                    if rent_flat_info_check(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
-                                            area=row[8], price=row[5], city_name=row[2], role=row[-7],
-                                            option=row[-2], street=row[4], metro=metro, room=row[6],
-                                            new_building=new_building, commission=commission, land_area=row[9],
-                                            landmark=landmark):
-                        details = InlineKeyboardButton(text="Детальніше", callback_data="details")
+                    if filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
+                               area=row[8], price=row[5], city_name=row[2], role=row[-7],
+                               option=row[-2], street=row[4], metro=metro, room=row[6],
+                               new_building=new_building, commission=commission, land_area=row[9],
+                               landmark=landmark, city=row[2]):
+                        details = InlineKeyboardButton(text="Детальніше",
+                                                       callback_data=cb_inline.new(action="details", data=new_building))
                         error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-                        phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                         callback_data=cb_inline.new(action="phone_num", data=row[-1]))
                         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
                         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                        phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                         callback_data=cb_inline.new(action="phone_num_web",
+                                                                                     data=[new_building, row[-1]]))
                         more = InlineKeyboardButton(text="Показати ще",
                                                     callback_data=cb_inline.new(action="more", data='for_ann'))
                         mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop, share,
@@ -581,6 +728,7 @@ async def web_app(message: types.Message, callback_data=None):
             elif breaking:
                 break
     else:
+        # add_new_user('second', message.from_user.id)
         check_id_form2(message.from_user.id)
         global count_of_coins
         count_of_coins -= 10
@@ -595,11 +743,12 @@ async def web_app(message: types.Message, callback_data=None):
         await bot.send_message(message.from_user.id, "Оголошення успішно створено!", reply_markup=mar)
 
 
-@dp.callback_query_handler(text="details")
-async def details_view(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(cb_inline.filter(action="details"))
+async def details_view(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране", callback_data=cb_inline.new(action="add_fav", data=
     re.findall("\d+", callback_query.message.text)[0]))
-    res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК", callback_data="res_complex")
+    res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
+                                       callback_data=cb_inline.new(action="res_complex", data=callback_data['data']))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints")
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back",
                                                                            data=re.findall("\d+",
@@ -608,6 +757,23 @@ async def details_view(callback_query: types.CallbackQuery):
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Детальніше", reply_markup=mar)
+
+
+@dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
+async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
+    details = InlineKeyboardButton(text="Детальніше",
+                                   callback_data=cb_inline.new(action="details", data=callback_data['data'][0]))
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+    change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
+    stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
+    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+    phone_num = InlineKeyboardButton(text="Показати номер телефону")
+    more = InlineKeyboardButton(text="Показати ще",
+                                callback_data=cb_inline.new(action="more", data='for_ann'))
+    mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop, share,
+                                                more)
+    await bot.edit_message_text(callback_data['data'][1], callback_query.from_user.id,
+                                callback_query.message.message_id, reply_markup=mar)
 
 
 @dp.callback_query_handler(cb_inline.filter(action='back'))
@@ -663,13 +829,17 @@ async def show_favorite(callback_query: types.CallbackQuery):
         markers = json.loads(row[6])
         count = 0
         media = types.MediaGroup()
+        markers = json.loads(row[-8])
+        new_building = ''
+        if 'newhouse' in markers:
+            new_building = markers['newhouse']
 
-        details = InlineKeyboardButton(text="Детальніше", callback_data="details_in_fav")
+        details = InlineKeyboardButton(text="Детальніше",
+                                       callback_data=cb_inline.new(action="details_in_fav", data=new_building))
         error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-        phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                         callback_data=cb_inline.new(action="phone_num", data=row[-1]))
+        phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline(action="phone_num_fav", data=[new_building, row[-1]]))
         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-        mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, share)
+        mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
 
         for image in images:
             if count < 10:
@@ -691,12 +861,23 @@ async def show_favorite(callback_query: types.CallbackQuery):
                 break
             count += 1
 
+@dp.callback_query_handler(cb_inline.filter(action="phone_num_fav"))
+async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
+    details = InlineKeyboardButton(text="Детальніше",
+                                   callback_data=cb_inline.new(action="details_in_fav", data=callback_data['data'][0]))
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+    phone_num = InlineKeyboardButton(text="Показати номер телефону")
+    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+    mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
+    await bot.edit_message_text(callback_data['data'][1], callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
 
-@dp.callback_query_handler(text="details_in_fav")
-async def details_in_fav(callback_query: types.CallbackQuery):
+
+@dp.callback_query_handler(cb_inline.filter(action="details_in_fav"))
+async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Видалити з обране", callback_data=cb_inline.new(action="del_fav", data=
     re.findall("\d+", callback_query.message.text)[0]))
-    res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК", callback_data="res_complex")
+    res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
+                                       callback_data=cb_inline.new(action="res_complex", data=callback_data['data']))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints")
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
     re.findall("\d+", callback_query.message.text)[0]))
@@ -716,11 +897,6 @@ async def del_fav(callback_query: types.CallbackQuery, callback_data):
     mes = await bot.send_message(callback_query.from_user.id, "Оголошення видалено з Обране")
     time.sleep(10)
     await bot.delete_message(callback_query.from_user.id, mes.message_id)
-
-
-@dp.callback_query_handler(text="phone_num")
-async def phone_num(callback_query: types.CallbackQuery, callback_data):
-    await bot.edit_message_text(callback_data['data'], callback_query.from_user.id, callback_query.message_id)
 
 
 @dp.callback_query_handler(text="error")
@@ -755,6 +931,69 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
     connection.execute(insertion_query)
     connection.commit()
     await bot.send_message(callback_query.from_user.id, text=f"{announcement_id}, {' '.join(complaint)}")
+
+
+@dp.callback_query_handler(cb_inline.filter(action='res_complex'))
+async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_data):
+    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    selection_query = select(rieltor_table)
+    selection_result = connection.execute(selection_query)
+    for row in selection_result.fetchall():
+        markers = json.loads(row[-8])
+        if 'newhouse' in markers:
+            if callback_data['data'] == markers['newhouse']:
+                images = json.loads(row[-6])
+                count = 0
+                media = types.MediaGroup()
+                share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                details = InlineKeyboardButton(text="Детальніше",
+                                               callback_data=cb_inline.new(acrion="details_in_complex",
+                                                                           data=callback_data['data']))
+                phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline.new(action="phone_num_complex", data=[callback_data['data'], row[-1]]))
+                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
+                for image in images:
+                    if count < len(images) and count < 10:
+                        media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
+                                                                                f"📍Розташування: {row[3]}\n"
+                                                                                f"📫{row[4]}\n"
+                                                                                f"🏢{row[7]}\n"
+                                                                                f"📈Площа: {row[8]}\n"
+                                                                                f"🛏{row[6]}\n"
+                                                                                f"💰Ціна:{row[5]}\n"
+                                                                                f"👥{row[-7]}\n📞{row[-1]}" if count == 0 else ''))
+                    elif count == len(images) or count == 10:
+                        temp += 1
+                        await bot.send_media_group(callback_query.from_user.id, media=media)
+                        await bot.send_message(callback_query.from_user.id, f'📌ID:{row[-3]} меню',
+                                               reply_markup=mar)
+                    elif count > len(images) or count > 10:
+                        break
+                    count += 1
+
+
+@dp.callback_query_handler(cb_inline.filter(action="phone_num_complex"))
+async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
+    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+    details = InlineKeyboardButton(text="Детальніше",
+                                   callback_data=cb_inline.new(acrion="details_in_complex",
+                                                               data=callback_data['data'][0]))
+    phone_num = InlineKeyboardButton(text="Показати номер телефону")
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+    mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
+    await bot.edit_message_text(callback_data['data'][1], callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
+
+
+@dp.callback_query_handler(cb_inline.filter(action="details_in_complex"))
+async def details_in_complex(callback_query: types.CallbackQuery, callback_data):
+    fav = InlineKeyboardButton(text="Додати в обране", callback_data=cb_inline.new(action="add_fav", data=
+    re.findall("\d+", callback_query.message.text)[0]))
+    complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints")
+    back = InlineKeyboardButton(text="Назад🔙",
+                                callback_data=cb_inline.new(action="back_to_complex", data=callback_data['data']))
+    mar = InlineKeyboardMarkup(row_width=2).add(fav, complaints, back)
+    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                text="Детальніше", reply_markup=mar)
 
 
 def create_db_control():
