@@ -877,7 +877,7 @@ async def web_app(message: types.Message, callback_data=None):
                                                                                                 f"📈Площа: {row[8]}\n"
                                                                                                 f"🛏{row[6]}\n"
                                                                                                 f"💰Ціна:{row[5]}\n"
-                                                                                                f"👥{row[-7]}\n"))
+                                                                                                f"👥{row[-7]}" if count == 0 else ''))
                                     else:
                                         announcements = check_data_from_user(message.from_user.id)
                                         control_table = db.Table('control_data', metadata, autoload_with=engine)
@@ -926,7 +926,7 @@ async def web_app(message: types.Message, callback_data=None):
                                                                                                  f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
                                                                                                  f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                                  f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                                 f"👥{announcement['buttons']['role'][0]}"))
+                                                                                                 f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
                                             await bot.send_media_group(message.from_user.id, media=media)
                                             await bot.send_message(message.from_user.id, f'👇', reply_markup=mar)
 
@@ -1086,7 +1086,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                                                                 f"📈Площа: {row[5]}\n"
                                                                                 f"🛏{row[3]}\n"
                                                                                 f"💰Ціна:{row[2]}\n"
-                                                                                f"👥{row[7]}\n"))
+                                                                                f"👥{row[7]}" if count == 0 else ''))
                     else:
                         announcements = check_id_form2(callback_query.from_user.id)
                         control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -1134,7 +1134,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                                                                      f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
                                                                                      f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                      f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                     f"👥{announcement['buttons']['role'][0]}"))
+                                                                                     f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
                                     await bot.send_media_group(callback_query.from_user.id, media=media)
                                     await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
                 elif count == 10:
@@ -1275,7 +1275,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                                     f"📈Площа: {row[8]}\n"
                                                                                     f"🛏{row[6]}\n"
                                                                                     f"💰Ціна:{row[5]}\n"
-                                                                                    f"👥{row[-7]}\n"))
+                                                                                    f"👥{row[-7]}" if count == 0 else ''))
                         else:
                             announcements = check_id_form2(callback_query.from_user.id)
                             control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -1318,7 +1318,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                                          f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
                                                                                          f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                          f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                         f"👥{announcement['buttons']['role'][0]}"))
+                                                                                         f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
                                         await bot.send_media_group(callback_query.from_user.id, media=media)
                                         await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
                     elif count == len(images) or count == 10:
