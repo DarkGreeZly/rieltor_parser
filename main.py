@@ -148,7 +148,7 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
         favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
     else:
         favorite = InlineKeyboardButton(text=f"Обране", callback_data="favorite")
-    my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_message")
+    my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_messages")
     my_ann = InlineKeyboardButton(text="Мої оголошення", callback_data="announcement")
     share = InlineKeyboardButton(text="Розповісти про бота", callback_data="share")
     help = InlineKeyboardButton(text="Звернутися в підтримку", callback_data="help")
@@ -178,7 +178,7 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
         favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
     else:
         favorite = InlineKeyboardButton(text=f"Обране", callback_data="favorite")
-    my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_message")
+    my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_messages")
     my_ann = InlineKeyboardButton(text="Мої оголошення", callback_data="announcement")
     stop_search = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop_search")
     if not_checked != 0:
@@ -200,6 +200,24 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
 
         await bot.send_message(callback_query.from_user.id, 'Перейти до пошуку за параметрами',
                                reply_markup=mar1)
+
+
+@dp.callback_query_handler(text='my_messages')
+async def my_messages(callback_query: types.CallbackQuery):
+    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
+    selection_result = connection.execute(selection_query)
+    rows = selection_result.fetchall()
+    last_row = rows[-1]
+    count_complaints = 0
+    for row in rows:
+        if row[3] and row != last_row:
+            await bot.send_message(callback_query.from_user.id, f"{row[4]}\n"
+                                                                f"{row[3]}\n"
+                                                                f"від {callback_query.from_user.full_name} {row[1]}")
+            count_complaints += 1
+        elif row == last_row and count_complaints == 0:
+            await bot.send_message(callback_query.from_user.id, "Скарги відсутні")
 
 
 @dp.callback_query_handler(text='announcement')
@@ -659,7 +677,7 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
                 return False
 
         # print(doc['input']['cost'])
-        if 'cost' in doc['input']:
+        if 'cost' in doc['input'] and 'typeCurrency' in doc['buttons']:
             if doc['buttons']['section'] == ['Оренда'] and (
                     option == 'flats-rent/' or option == 'flats-rent/newhouse/'):
                 currency = price.split(' ')
@@ -836,7 +854,8 @@ async def web_app(message: types.Message, callback_data=None):
                                     if current_row != last_row:
                                         details = InlineKeyboardButton(text="Детальніше",
                                                                        callback_data=cb_inline.new(action="details",
-                                                                                                   data=[row[-3], new_building]))
+                                                                                                   data=[row[-3],
+                                                                                                         new_building]))
                                         # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
                                         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                                         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
@@ -908,6 +927,8 @@ async def web_app(message: types.Message, callback_data=None):
                                                                                                  f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                                  f"💰Ціна: {announcement['input']['cost'][0]}\n"
                                                                                                  f"👥{announcement['buttons']['role'][0]}"))
+                                            await bot.send_media_group(message.from_user.id, media=media)
+                                            await bot.send_message(message.from_user.id, f'👇', reply_markup=mar)
 
 
                                 elif count == len(images) or count == 10:
@@ -980,9 +1001,17 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action='back'))
 async def back(callback_query: types.CallbackQuery, callback_data):
-    details = InlineKeyboardButton(text="Детальніше", callback_data=cb_inline.new(action="details", data=[callback_data['data'][0], callback_data['data'][1]]))
+    details = InlineKeyboardButton(text="Детальніше", callback_data=cb_inline.new(action="details",
+                                                                                  data=[callback_data['data'][0],
+                                                                                        callback_data['data'][1]]))
     error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline.new(action="phone_num", data=[callback_data['data'][0], callback_data['data'][1], callback_data['data'][2]]))
+    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline.new(action="phone_num",
+                                                                                                 data=[callback_data[
+                                                                                                           'data'][0],
+                                                                                                       callback_data[
+                                                                                                           'data'][1],
+                                                                                                       callback_data[
+                                                                                                           'data'][2]]))
     change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
     stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
     share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1024,92 +1053,108 @@ async def show_favorite(callback_query: types.CallbackQuery):
     control_selection_result = connection.execute(control_selection)
     control_elements = control_selection_result.fetchall()
     last_element = control_elements[-1]
-    for control_element in control_elements:
-        rieltor_selection = select(rieltor_table).where(rieltor_table.c.rieltor_id == control_element[2])
-        rieltor_selection_result = connection.execute(rieltor_selection)
-        row = rieltor_selection_result.fetchone()
-        images = json.loads(row[-6])
-        markers = json.loads(row[6])
-        count = 0
-        media = types.MediaGroup()
-        markers = json.loads(row[-8])
-        new_building = ''
-        if 'newhouse' in markers:
-            new_building = markers['newhouse']
-        for image in images:
-            if count < 10:
-                if control_element == last_element:
-                    details = InlineKeyboardButton(text="Детальніше",
-                                                   callback_data=cb_inline.new(action="details_in_fav",
-                                                                               data=new_building))
-                    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-                    phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                     callback_data=cb_inline(action="phone_num_fav",
-                                                                             data=[new_building, row[-1]]))
-                    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-                    mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
-                    media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
-                                                                            f"📍Розташування: {row[1].upper()},"
-                                                                            f" {' '.join(markers)}\n"
-                                                                            f"📫 {row[2]}, {row[3]}\n"
-                                                                            f"🏢{row[4]}\n"
-                                                                            f"📈Площа: {row[5]}\n"
-                                                                            f"🛏{row[3]}\n"
-                                                                            f"💰Ціна:{row[2]}\n"
-                                                                            f"👥{row[7]}\n"))
-                else:
-                    announcements = check_id_form2(callback_query.from_user.id)
-                    control_table = db.Table("control_data", metadata, autoload_with=engine)
-                    selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
-                    selection_res = connection.execute(selection_query)
-                    user = {}
-                    ann_ids = []
-                    for row in selection_res.fetchall():
-                        if row[1]:
-                            user = row
-                        if row[2]:
-                            ann_ids.append(row[2])
-                    for announcement in announcements:
-                        if announcement['announcementID'] in ann_ids:
-                            media = types.MediaGroup()
-                            for bot_image in announcement['input']['photoUrl']:
-                                details = InlineKeyboardButton(text="Детальніше",
-                                                               callback_data=cb_inline.new(action="details_in_fav",
-                                                                                           data=[announcement['announcementID'],
-                                                                                             announcement['GEO']['complex'][0]]))
-                                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error",
-                                                                                                             data=
-                                                                                                             announcement[
-                                                                                                                 'announcementID']))
-                                phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                                 callback_data=cb_inline(action="phone_num_fav",
-                                                                        data=[announcement['anouncementID'], announcement['GEO']['complex'][0], user[1]]))
-                                share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-                                mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
-                                media.attach_photo(types.InputMediaPhoto(bot_image['url'],
-                                                                         caption=f"📌ID:{announcement['anouncementID']}\n"
-                                                                                 f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
-                                                                                 f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
-                                                                                 f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
-                                                                                 f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
-                                                                                 f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
-                                                                                 f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                 f"👥{announcement['buttons']['role'][0]}"))
-            elif count == 10:
-                media_message = await bot.send_media_group(callback_query.from_user.id, media=media)
-                message_id = media_message[0]
-                media_id[row[-3]] = message_id['message_id']
-                await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
-            elif count > 10:
-                break
-            count += 1
+    if control_elements:
+        for control_element in control_elements:
+            rieltor_selection = select(rieltor_table).where(rieltor_table.c.rieltor_id == control_element[2])
+            rieltor_selection_result = connection.execute(rieltor_selection)
+            row = rieltor_selection_result.fetchone()
+            images = json.loads(row[-6])
+            markers = json.loads(row[6])
+            count = 0
+            media = types.MediaGroup()
+            markers = json.loads(row[-8])
+            new_building = ''
+            if 'newhouse' in markers:
+                new_building = markers['newhouse']
+            for image in images:
+                if count < 10:
+                    if control_element == last_element:
+                        details = InlineKeyboardButton(text="Детальніше",
+                                                       callback_data=cb_inline.new(action="details_in_fav",
+                                                                                   data=new_building))
+                        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                        phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                         callback_data=cb_inline(action="phone_num_fav",
+                                                                                 data=[new_building, row[-1]]))
+                        share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                        mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
+                        media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
+                                                                                f"📍Розташування: {row[1].upper()},"
+                                                                                f" {' '.join(markers)}\n"
+                                                                                f"📫 {row[2]}, {row[3]}\n"
+                                                                                f"🏢{row[4]}\n"
+                                                                                f"📈Площа: {row[5]}\n"
+                                                                                f"🛏{row[3]}\n"
+                                                                                f"💰Ціна:{row[2]}\n"
+                                                                                f"👥{row[7]}\n"))
+                    else:
+                        announcements = check_id_form2(callback_query.from_user.id)
+                        control_table = db.Table("control_data", metadata, autoload_with=engine)
+                        selection_query = select(control_table).where(
+                            control_table.c.user_id == callback_query.from_user.id)
+                        selection_res = connection.execute(selection_query)
+                        user = {}
+                        ann_ids = []
+                        for row in selection_res.fetchall():
+                            if row[1]:
+                                user = row
+                            if row[2]:
+                                ann_ids.append(row[2])
+                        for announcement in announcements:
+                            if announcement['announcementID'] in ann_ids:
+                                media = types.MediaGroup()
+                                for bot_image in announcement['input']['photoUrl']:
+                                    details = InlineKeyboardButton(text="Детальніше",
+                                                                   callback_data=cb_inline.new(action="details_in_fav",
+                                                                                               data=[announcement[
+                                                                                                         'announcementID'],
+                                                                                                     announcement[
+                                                                                                         'GEO'][
+                                                                                                         'complex'][
+                                                                                                         0]]))
+                                    error = InlineKeyboardButton(text="Помилка/Поскаржитись",
+                                                                 callback_data=cb_inline.new(action="error",
+                                                                                             data=
+                                                                                             announcement[
+                                                                                                 'announcementID']))
+                                    phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                                     callback_data=cb_inline(action="phone_num_fav",
+                                                                                             data=[announcement[
+                                                                                                       'anouncementID'],
+                                                                                                   announcement['GEO'][
+                                                                                                       'complex'][0],
+                                                                                                   user[1]]))
+                                    share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                                    mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
+                                    media.attach_photo(types.InputMediaPhoto(bot_image['url'],
+                                                                             caption=f"📌ID:{announcement['anouncementID']}\n"
+                                                                                     f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                                     f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                                     f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
+                                                                                     f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
+                                                                                     f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                     f"💰Ціна: {announcement['input']['cost'][0]}\n"
+                                                                                     f"👥{announcement['buttons']['role'][0]}"))
+                                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                                    await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
+                elif count == 10:
+                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
+                elif count > 10:
+                    break
+                count += 1
+    else:
+        await bot.send_message(callback_query.from_user.id, "Ви ще не додали оголошень до обраного")
 
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_fav"))
 async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
     details = InlineKeyboardButton(text="Детальніше",
-                                   callback_data=cb_inline.new(action="details_in_fav", data=[callback_data['data'][0], callback_data['data'][1]]))
-    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=callback_data['data'][0]))
+                                   callback_data=cb_inline.new(action="details_in_fav", data=[callback_data['data'][0],
+                                                                                              callback_data['data'][
+                                                                                                  1]]))
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись",
+                                 callback_data=cb_inline.new(action="error", data=callback_data['data'][0]))
     # phone_num = InlineKeyboardButton(text="Показати номер телефону")
     share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
     mar = InlineKeyboardMarkup(row_width=1).add(details, error, share)
@@ -1120,12 +1165,12 @@ async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
 @dp.callback_query_handler(cb_inline.filter(action="details_in_fav"))
 async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Видалити з обране", callback_data=cb_inline.new(action="del_fav", data=
-        callback_data['data'][0]))
+    callback_data['data'][0]))
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
                                        callback_data=cb_inline.new(action="res_complex", data=callback_data['data'][1]))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
-        callback_data['data'][0]))
+    callback_data['data'][0]))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Детальніше", reply_markup=mar)
@@ -1145,8 +1190,8 @@ async def show_complaints(callback_query: types.CallbackQuery, callback_data):
     for row in rows:
         if row[3]:
             await bot.send_message(callback_query.from_user.id, f"{callback_data['data']}\n"
-                                                            f"{row[3]}\n"
-                                                            f"від {callback_query.from_user.full_name} {user[1]}")
+                                                                f"{row[3]}\n"
+                                                                f"від {callback_query.from_user.full_name} {user[1]}")
 
 
 @dp.callback_query_handler(cb_inline.filter(action="del_fav"))
@@ -1176,7 +1221,7 @@ async def complaints_view(callback_query: types.CallbackQuery, callback_data):
     mess5 = InlineKeyboardButton(text="Підозрілий об`єкт", callback_data=cb_inline.new(action="complaint", data=[
         callback_data['data'], "Підозрілий об`єкт"]))
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
-        callback_data['data']))
+    callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=3).add(mess1, mess2, mess3, mess4, mess5, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Помилка/Поскаржитись", reply_markup=mar)
@@ -1216,7 +1261,8 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                            data=callback_data['data']))
                 phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                  callback_data=cb_inline.new(action="phone_num_complex",
-                                                                             data=[row[-3], callback_data['data'], row[-1]]))
+                                                                             data=[row[-3], callback_data['data'],
+                                                                                   row[-1]]))
                 error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
                 mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
                 for image in images:
@@ -1242,23 +1288,26 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                     media = types.MediaGroup()
                                     for bot_image in announcement['input']['photoUrl']:
                                         details = InlineKeyboardButton(text="Детальніше",
-                                                                       callback_data=cb_inline.new(action="details_in_fav",
-                                                                                                   data=[announcement[
-                                                                                                             'announcementID'],
-                                                                                                         announcement[
-                                                                                                             'GEO'][
-                                                                                                             'complex'][
-                                                                                                             0]]))
+                                                                       callback_data=cb_inline.new(
+                                                                           action="details_in_fav",
+                                                                           data=[announcement[
+                                                                                     'announcementID'],
+                                                                                 announcement[
+                                                                                     'GEO'][
+                                                                                     'complex'][
+                                                                                     0]]))
                                         error = InlineKeyboardButton(text="Помилка/Поскаржитись",
                                                                      callback_data=cb_inline.new(action="error",
                                                                                                  data=
                                                                                                  announcement[
                                                                                                      'announcementID']))
                                         phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                                         callback_data=cb_inline(action="phone_num_complex",
-                                                                                                 data=[announcement['anouncementID'], announcement['GEO'][
-                                                                                                           'complex'][0],
-                                                                                                       user[1]]))
+                                                                         callback_data=cb_inline(
+                                                                             action="phone_num_complex",
+                                                                             data=[announcement['anouncementID'],
+                                                                                   announcement['GEO'][
+                                                                                       'complex'][0],
+                                                                                   user[1]]))
                                         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
                                         mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
                                         media.attach_photo(types.InputMediaPhoto(bot_image['url'],
@@ -1287,7 +1336,8 @@ async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
                                    callback_data=cb_inline.new(acrion="details_in_complex",
                                                                data=callback_data['data'][0]))
     # phone_num = InlineKeyboardButton(text="Показати номер телефону")
-    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=callback_data['data'][0]))
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись",
+                                 callback_data=cb_inline.new(action="error", data=callback_data['data'][0]))
     mar = InlineKeyboardMarkup(row_width=1).add(details, error, share)
     await bot.edit_message_text(callback_data['data'][2], callback_query.from_user.id,
                                 callback_query.message.message_id, reply_markup=mar)
@@ -1296,7 +1346,7 @@ async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
 @dp.callback_query_handler(cb_inline.filter(action="details_in_complex"))
 async def details_in_complex(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране", callback_data=cb_inline.new(action="add_fav", data=
-        callback_data['data']))
+    callback_data['data']))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
     back = InlineKeyboardButton(text="Назад🔙",
                                 callback_data=cb_inline.new(action="back_to_complex", data=callback_data['data']))
