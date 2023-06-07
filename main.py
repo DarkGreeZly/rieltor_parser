@@ -95,20 +95,34 @@ async def command_start(message: types.Message):
     time.sleep(2)
     await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону")
 
+    @dp.message_handler()
+    async def user_number(message: types.Message):
+        global phone_number
+        if message.text[0] != '/':
+            continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
+            mar = InlineKeyboardMarkup().add(continue_button)
+            check_number = phonenumbers.parse(message.text)
+            if phonenumbers.is_valid_number(check_number):
+                phone_number = message.text
+                await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
+            else:
+                await bot.send_message(message.from_user.id,
+                                       "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
 
-@dp.message_handler()
-async def user_number(message: types.Message):
-    global phone_number
-    if message.text[0] != '/':
-        continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
-        mar = InlineKeyboardMarkup().add(continue_button)
-        check_number = phonenumbers.parse(message.text)
-        if phonenumbers.is_valid_number(check_number):
-            phone_number = message.text
-            await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
-        else:
-            await bot.send_message(message.from_user.id,
-                                   "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
+
+# @dp.message_handler()
+# async def user_number(message: types.Message):
+#     global phone_number
+#     if message.text[0] != '/':
+#         continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
+#         mar = InlineKeyboardMarkup().add(continue_button)
+#         check_number = phonenumbers.parse(message.text)
+#         if phonenumbers.is_valid_number(check_number):
+#             phone_number = message.text
+#             await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
+#         else:
+#             await bot.send_message(message.from_user.id,
+#                                    "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
 
 
 @dp.message_handler(commands=['add'])
