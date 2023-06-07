@@ -1319,6 +1319,8 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                                          f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                          f"💰Ціна: {announcement['input']['cost'][0]}\n"
                                                                                          f"👥{announcement['buttons']['role'][0]}"))
+                                        await bot.send_media_group(callback_query.from_user.id, media=media)
+                                        await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
                     elif count == len(images) or count == 10:
                         temp += 1
                         await bot.send_media_group(callback_query.from_user.id, media=media)
