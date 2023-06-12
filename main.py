@@ -271,34 +271,47 @@ async def sell_ann(callback_query: types.CallbackQuery):
     collection_ref = fire_base.collection('WebFormTwo')
     docs = collection_ref.stream()
 
+
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
     for doc in docs:
+        complaints = InlineKeyboardButton("Скарги", callback_data=cb_inline.new(action="complaints_show", data=doc['announcementID']))
+        actualize = InlineKeyboardButton("Актуалізація", callback_data=cb_inline.new(action="actualize", data=doc['announcementID']))
+        mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize)
         if str(callback_query.from_user.id) == str(doc.id):
             if doc['buttons']['section'] == ['Продати']:
                 media = types.MediaGroup()
                 for image in doc['input']['photoUrl']:
-                    media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                    media.attach_photo(types.InputMediaPhoto(image['url']))
+                await bot.send_media_group(callback_query.from_user.id, media=media)
+                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                    f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
                                                                                    f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                    f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                    f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                                    f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
                                                                                    f"💰Ціна: {doc['input']['cost'][0]}\n"
-                                                                                   f"👥{doc['buttons']['role'][0]}"))
+                                                                                   f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
             elif doc['buttons']['section'] == ['Здати в оренду']:
                 media = types.MediaGroup()
-                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                for image in doc['input']['photoUrl']:
+                    media.attach_photo(types.InputMediaPhoto(image['url']))
+                await bot.send_media_group(callback_query.from_user.id, media=media)
+                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
                                                                                f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                                f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
                                                                                f"💰Ціна: {doc['input']['cost'][0]}\n"
-                                                                               f"👥{doc['buttons']['role'][0]}"))
+                                                                               f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
+
             elif doc['buttons']['section'] == ['Купити']:
                 media = types.MediaGroup()
-                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                for image in doc['input']['photoUrl']:
+                    media.attach_photo(types.InputMediaPhoto(image['url']))
+                await bot.send_media_group(callback_query.from_user.id, media=media)
+                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                f"📍Розташування: {doc['GEO']['currentCity']}\n"
                                                                                f"Ⓜ {doc['GEO']['metroStation']}"
                                                                                f"📫{' '.join(doc['GEO']['streets'])}\n"
@@ -306,10 +319,14 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
                                                                                f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
                                                                                f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
-                                                                               f"👥{doc['buttons']['role']}"))
+                                                                               f"👥{doc['buttons']['role']}", reply_markup=mar)
+
             elif doc['buttons']['section'] == ['Орендувати']:
                 media = types.MediaGroup()
-                media.attach_photo(types.InputMediaPhoto(image['url'], caption=f"📌ID:{doc['userID']}\n"
+                for image in doc['input']['photoUrl']:
+                    media.attach_photo(types.InputMediaPhoto(image['url']))
+                await bot.send_media_group(callback_query.from_user.id, media=media)
+                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                f"📍Розташування: {doc['GEO']['currentCity']}\n"
                                                                                f"Ⓜ {doc['GEO']['metroStation']}"
                                                                                f"📫{' '.join(doc['GEO']['streets'])}\n"
@@ -317,7 +334,54 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
                                                                                f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
                                                                                f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
-                                                                               f"👥{doc['buttons']['role']}"))
+                                                                               f"👥{doc['buttons']['role']}", reply_markup=mar)
+
+
+@dp.callback_query_handler(cb_inline.filter(action="actualize"))
+async def actualize(callback_query: types.CallbackQuery, callback_data):
+    fire_base = firestore.client()
+
+    collection_ref = fire_base.collection('WebFormTwo')
+    announcements_list = collection_ref.stream()
+
+    collection_watch = collection_ref.on_snapshot(on_snapshot)
+
+    for announcements in announcements_list:
+        if str(callback_data['data']) == str(announcements.id):
+            for id, announcement in announcements:
+                if announcement['actualize_date'] == '':
+                    actualize_set = InlineKeyboardButton("Актуалізувати", callback_data=cb_inline.new(action='actualize_set', data=callback_data['data']))
+                    mar = InlineKeyboardMarkup().add(actualize_set)
+                    await bot.edit_message_text("Оголошення не актуалізовано, актуалізуйте будь ласка", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
+                elif announcement['actualize_date'] < dt.date.today() and int(str(dt.date.today() - announcement['actualize_date']).split(' ')[0]) >= 30:
+                    actualize_set = InlineKeyboardButton("Актуалізувати",
+                                                         callback_data=cb_inline.new(action='actualize_set',
+                                                                                     data=callback_data['data']))
+                    mar = InlineKeyboardMarkup().add(actualize_set)
+                    await bot.edit_message_text("Потрібна повторна акуалізація",
+                                                callback_query.from_user.id, callback_query.message.message_id,
+                                                reply_markup=mar)
+                elif announcement['actualize_date'] > dt.date.today():
+                    await bot.edit_message_text(f"Термін актуалізації закінчується {announcement['acualize_date']}\n"
+                                                f"Залишилось: {str(announcement['actualize_date'] - dt.date.today()).split(' ')[0]} днів",
+                                                callback_query.from_user.id, callback_query.message.message_id)
+
+
+@dp.callback_query_handler(cb_inline.filter(action="actualize_set"))
+async def set_actualize(callback_query: types.CallbackQuery, callback_data):
+    fire_base = firestore.client()
+
+    collection_ref = fire_base.collection('WebFormTwo')
+    announcements_list = collection_ref.stream()
+
+    collection_watch = collection_ref.on_snapshot(on_snapshot)
+
+    for announcements in announcements_list:
+        if str(callback_data['data']) == str(announcements.id):
+            for id, announcement in announcements:
+                if id == callback_data['data']:
+                    announcement['actualize_date'] = dt.date.today()
+
 
 
 @dp.callback_query_handler(text='not_enough_coins')
@@ -404,9 +468,9 @@ def check_id_form2(user_id):
 
     for doc in docs:
         if str(user_id) != str(doc.id):
-            announcements.append(doc.to_dict())
-        else:
-            print(doc.to_dict())
+            for id, announcement in doc:
+                print(id + " --> " + announcement.to_dict())
+                announcements.append(announcement.to_dict())
     return announcements
 
 
@@ -577,6 +641,34 @@ def check_data_from_user(user_id):
                 if announcement['buttons']['numbRooms'][0] not in filter['buttons']['numbRooms']:
                     continue
 
+            if 'comission' in announcement['input'] and 'Без комісії для покупця' not in filter['buttons']['role']:
+                if announcement['input']['comission'] == False:
+                    continue
+
+            if filter['GEO']['metroTime'] != []:
+                with open("metro_coordinates.json", encoding='utf-8') as metro_stations_data:
+                    metro_coordinates = metro_stations_data.read()
+                object_location = (announcement['GEO']['googleAdress'][-1]['googleCoordinates']['longitude'], announcement['GEO']['googleAdress'][-1]['googleCoordinates']['latitude'])
+                metro_accepted = []
+                for metro_stations in metro_coordinates[announcement['GEO']['currentCity']]:
+                    metro_location = (metro_stations[announcement['GEO']['metroStation'][0]][0], metro_stations[announcement['GEO']['metroStation'][0]][1])
+                    if hs.haversine(object_location, metro_location) in range(filter['GEO']['metroTime'][0],
+                                                                              filter['GEO']['metroTime'][1]):
+                        metro_accepted.append([station_name for station_name in metro_stations][0])
+                if announcement['GEO']['metroStation'][0] not in metro_accepted:
+                    continue
+
+            if filter['GEO']['range'] != {}:
+                center_coordinates = [coords for coords in filter['GEO']['range']][0]
+                center = (center_coordinates.split(',')[1], center_coordinates.split(',')[0])
+                if hs.haversine(center, (announcement['GEO']['googleAdress'][-1]['googleCoordinates']['longitude'], announcement['GEO']['googleAdress'][-1]['googleCoordinates']['latitude'])) > [radius for key, radius in filter['GEO']['range'][0]]:
+                    continue
+
+            if 'floorsHouse' in filter['input'] or 'floorCommercial' in filter['input']:
+                if announcement['input']['areaFloor'][0] not in range(filter['input']['floorsHouse'][0],
+                                      filter['input']['floorsHouse'][1]) or announcement['input']['areaFloor'][0] not in range(
+                    filter['input']['floorCommercial'][0], filter['input']['floorCommercial'][1]):
+                    continue
             accepted_announcements.append(announcement)
         return accepted_announcements
 
@@ -863,79 +955,87 @@ async def web_app(message: types.Message, callback_data=None):
                                         phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                                          callback_data=cb_inline.new(
                                                                              action="phone_num_web",
-                                                                             data=[row[-3], new_building, row[-1]]))
+                                                                             data=json.dumps([row[-3], new_building, row[-1]])))
                                         more = InlineKeyboardButton(text="Показати ще",
                                                                     callback_data=cb_inline.new(action="more",
                                                                                                 data='for_ann'))
                                         mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
                                                                                     share,
                                                                                     more)
-                                        media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
-                                                                                                f"📍Розташування: {row[3]}\n"
-                                                                                                f"📫{row[4]}\n"
-                                                                                                f"🏢{row[7]}\n"
-                                                                                                f"📈Площа: {row[8]}\n"
-                                                                                                f"🛏{row[6]}\n"
-                                                                                                f"💰Ціна:{row[5]}\n"
-                                                                                                f"👥{row[-7]}" if count == 0 else ''))
+                                        media.attach_photo(types.InputMediaPhoto(image))
                                     else:
                                         announcements = check_data_from_user(message.from_user.id)
                                         control_table = db.Table('control_data', metadata, autoload_with=engine)
                                         selection_query = select(control_table).where(
                                             control_table.c.user_id == message.from_user.id and control_table.c.phone_number is not None)
-                                        selection_res = connection.execute(selection_query)
-                                        user = selection_res.fetchone()
                                         for announcement in announcements:
+                                            selection_res = connection.execute(selection_query)
+                                            user = selection_res.fetchone()
 
                                             media = types.MediaGroup()
-                                            for bot_image in announcement['input']['photoUrl']:
-                                                details = InlineKeyboardButton(text="Детальніше",
-                                                                               callback_data=cb_inline.new(
-                                                                                   action="details_bot",
-                                                                                   data=[announcement['announcementID'],
-                                                                                         announcement['GEO']['complex'][
-                                                                                             0]]))
-                                                error = InlineKeyboardButton(text="Помилка/Поскаржитись",
-                                                                             callback_data=cb_inline.new(action="error",
-                                                                                                         data=
-                                                                                                         announcement[
-                                                                                                             'announcementID']))
-                                                change = InlineKeyboardButton(text="Змінити пошук",
-                                                                              callback_data="change")
-                                                stop = InlineKeyboardButton(text="Зупинити пошук",
-                                                                            callback_data="stop")
-                                                share = InlineKeyboardButton(text="Розповісти про бот",
-                                                                             callback_data="share")
-                                                phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                                                 callback_data=cb_inline.new(
-                                                                                     action="phone_num_web",
-                                                                                     data=[
-                                                                                         announcement['GEO']['complex'][
-                                                                                             0], user[1]]))
-                                                more = InlineKeyboardButton(text="Показати ще",
-                                                                            callback_data=cb_inline.new(
-                                                                                action="more", data='for_ann'))
-                                                mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, error,
-                                                                                            change, stop, share,
-                                                                                            more)
-                                                media.attach_photo(types.InputMediaPhoto(bot_image['url'],
-                                                                                         caption=f"📌ID:{announcement['anouncementID']}\n"
-                                                                                                 f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
-                                                                                                 f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
-                                                                                                 f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
-                                                                                                 f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
-                                                                                                 f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
-                                                                                                 f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                                 f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
-                                            await bot.send_media_group(message.from_user.id, media=media)
-                                            await bot.send_message(message.from_user.id, f'👇', reply_markup=mar)
+                                            if temp % 6 != 0:
+                                                for bot_image in announcement['input']['photoUrl']:
+                                                    details = InlineKeyboardButton(text="Детальніше",
+                                                                                   callback_data=cb_inline.new(
+                                                                                       action="details_bot",
+                                                                                       data=[announcement['announcementID'],
+                                                                                             announcement['GEO']['complex'][
+                                                                                                 0]]))
+                                                    error = InlineKeyboardButton(text="Помилка/Поскаржитись",
+                                                                                 callback_data=cb_inline.new(action="error",
+                                                                                                             data=
+                                                                                                             announcement[
+                                                                                                                 'announcementID']))
+                                                    change = InlineKeyboardButton(text="Змінити пошук",
+                                                                                  callback_data="change")
+                                                    stop = InlineKeyboardButton(text="Зупинити пошук",
+                                                                                callback_data="stop")
+                                                    share = InlineKeyboardButton(text="Розповісти про бот",
+                                                                                 callback_data="share")
+                                                    phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                                                     callback_data=cb_inline.new(
+                                                                                         action="phone_num_web",
+                                                                                         data=[
+                                                                                             announcement['GEO']['complex'][
+                                                                                                 0], user[1]]))
+                                                    more = InlineKeyboardButton(text="Показати ще",
+                                                                                callback_data=cb_inline.new(
+                                                                                    action="more", data='for_ann'))
+                                                    mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, error,
+                                                                                                change, stop, share,
+                                                                                                more)
+                                                    media.attach_photo(types.InputMediaPhoto(bot_image['url']))
+                                                temp += 1
+                                                await bot.send_media_group(message.from_user.id, media=media)
+                                                await bot.send_message(message.from_user.id, f"📌ID:{announcement['anouncementID']}\n"
+                                                                                                     f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                                                     f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                                                     f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
+                                                                                                     f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
+                                                                                                     f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                                     f"💰Ціна: {announcement['input']['cost'][0]}\n"
+                                                                                                     f"👥{announcement['buttons']['role'][0]}", reply_markup=mar)
+                                            else:
+                                                breaking = True
+                                                temp += 1
+                                                break
 
 
                                 elif count == len(images) or count == 10:
-                                    temp += 1
-                                    await bot.send_media_group(message.from_user.id, media=media)
-                                    await bot.send_message(message.from_user.id, f'👇',
-                                                           reply_markup=mar)
+                                    if current_row != last_row:
+                                        temp += 1
+                                        await bot.send_media_group(message.from_user.id, media=media)
+                                        await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
+                                                                                                    f"📍Розташування: {row[3]}\n"
+                                                                                                    f"📫{row[4]}\n"
+                                                                                                    f"🏢{row[7]}\n"
+                                                                                                    f"📈Площа: {row[8]}\n"
+                                                                                                    f"🛏{row[6]}\n"
+                                                                                                    f"💰Ціна:{row[5]}\n"
+                                                                                                    f"👥{row[-7]}",
+                                                               reply_markup=mar)
+                                    else:
+                                        break
                                 elif count > len(images) or count > 10:
                                     break
                                 count += 1
@@ -961,6 +1061,29 @@ async def web_app(message: types.Message, callback_data=None):
         await bot.send_message(message.from_user.id, "Оголошення успішно створено!", reply_markup=mar)
 
 
+@dp.callback_query_handler(text="stop")
+async def stop_search(callback_query: types.CallbackQuery):
+    global temp, current_row, not_checked
+    temp = 1
+    current_row = ()
+    not_checked = 0
+    agreement = InlineKeyboardButton("Зупинити", callback_data="stop_search")
+    mar = InlineKeyboardMarkup().add(agreement)
+    await bot.send_message("Ви дійсно хочете зупинити пошук?", callback_query.from_user.id, reply_markup=mar)
+
+
+@dp.callback_query_handler(text="change")
+async def change_search(callback_query: types.CallbackQuery):
+    global temp, current_row, not_checked
+    temp = 1
+    current_row = ()
+    not_checked = 0
+    agreement = KeyboardButton("", web_app=WebAppInfo(
+            url=f"https://testwebform142125.000webhostapp.com/FormSecond/idUser/{callback_query.from_user.id}"))
+    mar = ReplyKeyboardMarkup().add(agreement)
+    await bot.send_message("Ви дійсно хочете змінити пошук?", callback_query.from_user.id, reply_markup=mar)
+
+
 @dp.callback_query_handler(cb_inline.filter(action="details_bot"))
 @dp.callback_query_handler(cb_inline.filter(action="details"))
 async def details_view(callback_query: types.CallbackQuery, callback_data):
@@ -978,6 +1101,7 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
 async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
+    callback_data['data'] = json.loads(callback_data['data'])
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id and control_table.c.phone_number is not None)
@@ -1078,15 +1202,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                                                                  data=[new_building, row[-1]]))
                         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
                         mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
-                        media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
-                                                                                f"📍Розташування: {row[1].upper()},"
-                                                                                f" {' '.join(markers)}\n"
-                                                                                f"📫 {row[2]}, {row[3]}\n"
-                                                                                f"🏢{row[4]}\n"
-                                                                                f"📈Площа: {row[5]}\n"
-                                                                                f"🛏{row[3]}\n"
-                                                                                f"💰Ціна:{row[2]}\n"
-                                                                                f"👥{row[7]}" if count == 0 else ''))
+                        media.attach_photo(types.InputMediaPhoto(image))
                     else:
                         announcements = check_id_form2(callback_query.from_user.id)
                         control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -1126,20 +1242,30 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                                                                                    user[1]]))
                                     share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
                                     mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
-                                    media.attach_photo(types.InputMediaPhoto(bot_image['url'],
-                                                                             caption=f"📌ID:{announcement['anouncementID']}\n"
+                                    media.attach_photo(types.InputMediaPhoto(bot_image['url']))
+                                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                                    await bot.send_message(callback_query.from_user.id, f"📌ID:{announcement['anouncementID']}\n"
                                                                                      f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
                                                                                      f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                      f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                                      f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
                                                                                      f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                      f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                     f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
-                                    await bot.send_media_group(callback_query.from_user.id, media=media)
-                                    await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
+                                                                                     f"👥{announcement['buttons']['role'][0]}", reply_markup=mar)
                 elif count == 10:
-                    await bot.send_media_group(callback_query.from_user.id, media=media)
-                    await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
+                    if control_element != last_element:
+                        await bot.send_media_group(callback_query.from_user.id, media=media)
+                        await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
+                                                                                    f"📍Розташування: {row[1].upper()},"
+                                                                                    f" {' '.join(markers)}\n"
+                                                                                    f"📫 {row[2]}, {row[3]}\n"
+                                                                                    f"🏢{row[4]}\n"
+                                                                                    f"📈Площа: {row[5]}\n"
+                                                                                    f"🛏{row[3]}\n"
+                                                                                    f"💰Ціна:{row[2]}\n"
+                                                                                    f"👥{row[7]}", reply_markup=mar)
+                    else:
+                        break
                 elif count > 10:
                     break
                 count += 1
@@ -1268,14 +1394,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                 for image in images:
                     if count < len(images) and count < 10:
                         if row == last_row:
-                            media.attach_photo(types.InputMediaPhoto(image, caption=f"📌ID:{row[-3]}\n"
-                                                                                    f"📍Розташування: {row[3]}\n"
-                                                                                    f"📫{row[4]}\n"
-                                                                                    f"🏢{row[7]}\n"
-                                                                                    f"📈Площа: {row[8]}\n"
-                                                                                    f"🛏{row[6]}\n"
-                                                                                    f"💰Ціна:{row[5]}\n"
-                                                                                    f"👥{row[-7]}" if count == 0 else ''))
+                            media.attach_photo(types.InputMediaPhoto(image))
                         else:
                             announcements = check_id_form2(callback_query.from_user.id)
                             control_table = db.Table("control_data", metadata, autoload_with=engine)
@@ -1310,22 +1429,29 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                                    user[1]]))
                                         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
                                         mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
-                                        media.attach_photo(types.InputMediaPhoto(bot_image['url'],
-                                                                                 caption=f"📌ID:{announcement['anouncementID']}\n"
+                                        media.attach_photo(types.InputMediaPhoto(bot_image['url']))
+                                        await bot.send_media_group(callback_query.from_user.id, media=media)
+                                        await bot.send_message(callback_query.from_user.id, f"📌ID:{announcement['anouncementID']}\n"
                                                                                          f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
                                                                                          f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                          f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                                          f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
                                                                                          f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
                                                                                          f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                                         f"👥{announcement['buttons']['role'][0]}" if count == 0 else ''))
-                                        await bot.send_media_group(callback_query.from_user.id, media=media)
-                                        await bot.send_message(callback_query.from_user.id, f'👇', reply_markup=mar)
+                                                                                         f"👥{announcement['buttons']['role'][0]}", reply_markup=mar)
                     elif count == len(images) or count == 10:
-                        temp += 1
-                        await bot.send_media_group(callback_query.from_user.id, media=media)
-                        await bot.send_message(callback_query.from_user.id, f'👇',
-                                               reply_markup=mar)
+                        if row != last_row:
+                            await bot.send_media_group(callback_query.from_user.id, media=media)
+                            await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
+                                                                                        f"📍Розташування: {row[3]}\n"
+                                                                                        f"📫{row[4]}\n"
+                                                                                        f"🏢{row[7]}\n"
+                                                                                        f"📈Площа: {row[8]}\n"
+                                                                                        f"🛏{row[6]}\n"
+                                                                                        f"💰Ціна:{row[5]}\n"
+                                                                                        f"👥{row[-7]}", reply_markup=mar)
+                        else:
+                            break
                     elif count > len(images) or count > 10:
                         break
                     count += 1
