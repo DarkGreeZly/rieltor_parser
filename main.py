@@ -202,8 +202,9 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
                                reply_markup=mar1)
 
 
+@dp.message_handler(commands="my_messages")
 @dp.callback_query_handler(text='my_messages')
-async def my_messages(callback_query: types.CallbackQuery):
+async def my_messages(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
@@ -220,9 +221,10 @@ async def my_messages(callback_query: types.CallbackQuery):
             await bot.send_message(callback_query.from_user.id, "Скарги відсутні")
 
 
+@dp.message_handler(commands='my_advertisements')
 @dp.callback_query_handler(text='announcement')
 @dp.callback_query_handler(cb_inline.filter(action='search'))
-async def announcement_menu(callback_query: types.CallbackQuery):
+async def announcement_menu(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     fire_base = firestore.client()
 
     collection_ref = fire_base.collection('WebFormTwo')
@@ -233,16 +235,17 @@ async def announcement_menu(callback_query: types.CallbackQuery):
     count_of_rents = 0
     count_of_purchases = 0
     count_of_leases = 0
-    for doc in docs:
-        if doc.id == callback_query.from_user.id:
-            if doc['buttons']['section'] == ['Продати']:
-                count_of_sells += 1
-            elif doc['buttons']['section'] == ['Здати в оренду']:
-                count_of_rents += 1
-            elif doc['buttons']['section'] == ['Купити']:
-                count_of_purchases += 1
-            elif doc['buttons']['section'] == ['Орендувати']:
-                count_of_leases += 1
+    for user_docs in docs:
+        if user_docs.id == callback_query.from_user.id:
+            for id, doc in user_docs.to_dict().items():
+                if doc['buttons']['section'] == ['Продати']:
+                    count_of_sells += 1
+                elif doc['buttons']['section'] == ['Здати в оренду']:
+                    count_of_rents += 1
+                elif doc['buttons']['section'] == ['Купити']:
+                    count_of_purchases += 1
+                elif doc['buttons']['section'] == ['Орендувати']:
+                    count_of_leases += 1
     if count_of_sells > 0:
         sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data="show_ann")
     else:
@@ -260,8 +263,11 @@ async def announcement_menu(callback_query: types.CallbackQuery):
     else:
         rent_in = InlineKeyboardButton(text="Зніму", callback_data="empty_ann")
     mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in)
-    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                text="Мої оголошення", reply_markup=mar)
+    if command.command == "my_advertisements":
+        await bot.send_message(callback_query.from_user.id, text="Мої оголошення", reply_markup=mar)
+    else:
+        await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                    text="Мої оголошення", reply_markup=mar)
 
 
 @dp.callback_query_handler(text="show_ann")
@@ -274,17 +280,31 @@ async def sell_ann(callback_query: types.CallbackQuery):
 
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
-    for doc in docs:
+    for user_docs in docs:
         complaints = InlineKeyboardButton("Скарги", callback_data=cb_inline.new(action="complaints_show", data=doc['announcementID']))
         actualize = InlineKeyboardButton("Актуалізація", callback_data=cb_inline.new(action="actualize", data=doc['announcementID']))
         mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize)
-        if str(callback_query.from_user.id) == str(doc.id):
-            if doc['buttons']['section'] == ['Продати']:
-                media = types.MediaGroup()
-                for image in doc['input']['photoUrl']:
-                    media.attach_photo(types.InputMediaPhoto(image['url']))
-                await bot.send_media_group(callback_query.from_user.id, media=media)
-                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
+        if str(callback_query.from_user.id) == str(user_docs.id):
+            for id, doc in user_docs.to_dict().items():
+                if doc['buttons']['section'] == ['Продати']:
+                    media = types.MediaGroup()
+                    for image in doc['input']['photoUrl']:
+                        media.attach_photo(types.InputMediaPhoto(image['url']))
+                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
+                                                                                       f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
+                                                                                       f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                                       f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
+                                                                                       f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
+                                                                                       f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                       f"💰Ціна: {doc['input']['cost'][0]}\n"
+                                                                                       f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
+                elif doc['buttons']['section'] == ['Здати в оренду']:
+                    media = types.MediaGroup()
+                    for image in doc['input']['photoUrl']:
+                        media.attach_photo(types.InputMediaPhoto(image['url']))
+                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                    f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
                                                                                    f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                    f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
@@ -292,49 +312,36 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
                                                                                    f"💰Ціна: {doc['input']['cost'][0]}\n"
                                                                                    f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
-            elif doc['buttons']['section'] == ['Здати в оренду']:
-                media = types.MediaGroup()
-                for image in doc['input']['photoUrl']:
-                    media.attach_photo(types.InputMediaPhoto(image['url']))
-                await bot.send_media_group(callback_query.from_user.id, media=media)
-                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
-                                                                               f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
-                                                                               f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
-                                                                               f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
-                                                                               f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
-                                                                               f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
-                                                                               f"💰Ціна: {doc['input']['cost'][0]}\n"
-                                                                               f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
-            elif doc['buttons']['section'] == ['Купити']:
-                media = types.MediaGroup()
-                for image in doc['input']['photoUrl']:
-                    media.attach_photo(types.InputMediaPhoto(image['url']))
-                await bot.send_media_group(callback_query.from_user.id, media=media)
-                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
-                                                                               f"📍Розташування: {doc['GEO']['currentCity']}\n"
-                                                                               f"Ⓜ {doc['GEO']['metroStation']}"
-                                                                               f"📫{' '.join(doc['GEO']['streets'])}\n"
-                                                                               f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
-                                                                               f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                               f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
-                                                                               f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
-                                                                               f"👥{doc['buttons']['role']}", reply_markup=mar)
+                elif doc['buttons']['section'] == ['Купити']:
+                    media = types.MediaGroup()
+                    for image in doc['input']['photoUrl']:
+                        media.attach_photo(types.InputMediaPhoto(image['url']))
+                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
+                                                                                   f"📍Розташування: {doc['GEO']['currentCity']}\n"
+                                                                                   f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                                   f"📫{' '.join(doc['GEO']['streets'])}\n"
+                                                                                   f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
+                                                                                   f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
+                                                                                   f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                                   f"👥{doc['buttons']['role']}", reply_markup=mar)
 
-            elif doc['buttons']['section'] == ['Орендувати']:
-                media = types.MediaGroup()
-                for image in doc['input']['photoUrl']:
-                    media.attach_photo(types.InputMediaPhoto(image['url']))
-                await bot.send_media_group(callback_query.from_user.id, media=media)
-                await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
-                                                                               f"📍Розташування: {doc['GEO']['currentCity']}\n"
-                                                                               f"Ⓜ {doc['GEO']['metroStation']}"
-                                                                               f"📫{' '.join(doc['GEO']['streets'])}\n"
-                                                                               f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
-                                                                               f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                               f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
-                                                                               f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
-                                                                               f"👥{doc['buttons']['role']}", reply_markup=mar)
+                elif doc['buttons']['section'] == ['Орендувати']:
+                    media = types.MediaGroup()
+                    for image in doc['input']['photoUrl']:
+                        media.attach_photo(types.InputMediaPhoto(image['url']))
+                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
+                                                                                   f"📍Розташування: {doc['GEO']['currentCity']}\n"
+                                                                                   f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                                   f"📫{' '.join(doc['GEO']['streets'])}\n"
+                                                                                   f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
+                                                                                   f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
+                                                                                   f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                                   f"👥{doc['buttons']['role']}", reply_markup=mar)
 
 
 @dp.callback_query_handler(cb_inline.filter(action="actualize"))
@@ -427,11 +434,7 @@ async def update(callback_query: types.CallbackQuery):
 @dp.message_handler(commands=['support'])
 @dp.callback_query_handler(text='help')
 async def support(callback_query: types.CallbackQuery, command: types.BotCommand = None):
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
-    selection_query = select(control_table).where(control_table.c.support == True)
-    selection_result = connection.execute(selection_query)
-    for row in selection_result.fetchall():
-        await bot.send_message(row[0], f"Користувач @{callback_query.from_user.username} потребує твоєї допомоги!")
+    await bot.send_message(callback_query.from_user.id, f"Якщо у вас виникли питання, на які не зміг відповісти бот, напишіть нам, будь ласка: @eBAZAadmin")
 
 
 def on_snapshot(col_snapshot, changes, read_time):
@@ -468,9 +471,10 @@ def check_id_form2(user_id):
 
     for doc in docs:
         if str(user_id) != str(doc.id):
-            for id, announcement in doc:
-                print(id + " --> " + announcement.to_dict())
-                announcements.append(announcement.to_dict())
+            print(doc.to_dict())
+            for id, announcement in doc.to_dict().items():
+                print(id + " --> " + str(announcement))
+                announcements.append(announcement)
     return announcements
 
 
