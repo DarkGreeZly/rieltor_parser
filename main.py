@@ -144,10 +144,7 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     else:
         sell = KeyboardButton(text="Додати оголошення", callback_data="not_enough_coins")
     wallet = InlineKeyboardButton(text="Перевірити гаманець", callback_data="wallet")
-    if len(selection_result.fetchall()) != 0:
-        favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
-    else:
-        favorite = InlineKeyboardButton(text=f"Обране", callback_data="favorite")
+    favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
     my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_messages")
     my_ann = InlineKeyboardButton(text="Мої оголошення", callback_data="announcement")
     share = InlineKeyboardButton(text="Розповісти про бота", callback_data="share")
@@ -174,13 +171,11 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
     search_by_params = KeyboardButton(text="Пошук за параметрами",
                                       web_app=WebAppInfo(
                                           url=f"https://testwebform142125.000webhostapp.com/FormFirst/idUser/{callback_query.from_user.id}"))
-    if len(selection_result.fetchall()) != 0:
-        favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
-    else:
-        favorite = InlineKeyboardButton(text=f"Обране", callback_data="favorite")
+    favorite = InlineKeyboardButton(text=f"Обране({len(selection_result.fetchall())})", callback_data="favorite")
     my_message = InlineKeyboardButton(text="Мої повідомлення", callback_data="my_messages")
     my_ann = InlineKeyboardButton(text="Мої оголошення", callback_data="announcement")
     stop_search = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop_search")
+    back = InlineKeyboardMarkup(text="Назад🔙", callback_data="start")
     if not_checked != 0:
         show_not_checked = InlineKeyboardButton(text=f"Показати не переглянуте({not_checked})",
                                                 callback_data=cb_inline.new(action="show_not_checked", data='for_ann'))
@@ -188,7 +183,7 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
         show_not_checked = InlineKeyboardButton(text=f"Показати не переглянуте",
                                                 callback_data="show_not_checked")
     mar = InlineKeyboardMarkup(resize_keyboard=True, row_width=2).add(favorite, my_message, my_ann, stop_search,
-                                                                      show_not_checked)
+                                                                      show_not_checked, back)
     mar1 = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(search_by_params)
 
     if command and command.command == 'search':
@@ -245,23 +240,12 @@ async def announcement_menu(callback_query: types.CallbackQuery, command: types.
                     count_of_purchases += 1
                 elif doc['buttons']['section'] == ['Орендувати']:
                     count_of_leases += 1
-    if count_of_sells > 0:
-        sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data="show_ann")
-    else:
-        sell = InlineKeyboardButton(text="Продам", callback_data="empty_ann")
-    if count_of_rents > 0:
-        rent_out = InlineKeyboardButton(text=f"Оренда({count_of_rents})", callback_data="show_ann")
-    else:
-        rent_out = InlineKeyboardButton(text="Оренда", callback_data="empty_ann")
-    if count_of_purchases > 0:
-        purchase = InlineKeyboardButton(text=f"Куплю({count_of_purchases})", callback_data="show_ann")
-    else:
-        purchase = InlineKeyboardButton(text="Куплю", callback_data="empty_ann")
-    if count_of_leases > 0:
-        rent_in = InlineKeyboardButton(text=f"Зніму({count_of_leases})", callback_data="show_ann")
-    else:
-        rent_in = InlineKeyboardButton(text="Зніму", callback_data="empty_ann")
-    mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in)
+    sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data="show_ann")
+    rent_out = InlineKeyboardButton(text=f"Оренда({count_of_rents})", callback_data="show_ann")
+    purchase = InlineKeyboardButton(text=f"Куплю({count_of_purchases})", callback_data="show_ann")
+    rent_in = InlineKeyboardButton(text=f"Зніму({count_of_leases})", callback_data="show_ann")
+    back = InlineKeyboardButton(text="Назад🔙", callback_data="search")
+    mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in, back)
     if command and command.command == "my_advertisements":
         await bot.send_message(callback_query.from_user.id, text="Мої оголошення", reply_markup=mar)
     else:
