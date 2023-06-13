@@ -223,7 +223,6 @@ async def my_messages(callback_query: types.CallbackQuery, command: types.BotCom
 
 @dp.message_handler(commands='my_advertisements')
 @dp.callback_query_handler(text='announcement')
-@dp.callback_query_handler(cb_inline.filter(action='search'))
 async def announcement_menu(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     fire_base = firestore.client()
 
@@ -263,7 +262,7 @@ async def announcement_menu(callback_query: types.CallbackQuery, command: types.
     else:
         rent_in = InlineKeyboardButton(text="Зніму", callback_data="empty_ann")
     mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in)
-    if command.command == "my_advertisements":
+    if command and command.command == "my_advertisements":
         await bot.send_message(callback_query.from_user.id, text="Мої оголошення", reply_markup=mar)
     else:
         await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
