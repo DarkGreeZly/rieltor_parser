@@ -1054,7 +1054,7 @@ async def stop_search(callback_query: types.CallbackQuery):
     temp = 1
     current_row = ()
     not_checked = 0
-    agreement = InlineKeyboardButton("Зупинити", callback_data="stop_search")
+    agreement = InlineKeyboardButton("Зупинити", callback_data="search")
     mar = InlineKeyboardMarkup().add(agreement)
     await bot.send_message("Ви дійсно хочете зупинити пошук?", callback_query.from_user.id, reply_markup=mar)
 
