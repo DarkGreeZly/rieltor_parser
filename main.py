@@ -232,7 +232,7 @@ async def announcement_menu(callback_query: types.CallbackQuery, command: types.
     count_of_purchases = 0
     count_of_leases = 0
     for user_docs in docs:
-        if user_docs.id == callback_query.from_user.id:
+        if str(user_docs.id) == str(callback_query.from_user.id):
             for id, doc in user_docs.to_dict().items():
                 if doc['buttons']['section'] == ['Продати']:
                     count_of_sells += 1
@@ -266,14 +266,17 @@ async def sell_ann(callback_query: types.CallbackQuery):
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
     for user_docs in docs:
-        complaints = InlineKeyboardButton("Скарги", callback_data=cb_inline.new(action="complaints_show", data=doc['announcementID']))
-        actualize = InlineKeyboardButton("Актуалізація", callback_data=cb_inline.new(action="actualize", data=doc['announcementID']))
-        mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize)
         if str(callback_query.from_user.id) == str(user_docs.id):
             for id, doc in user_docs.to_dict().items():
+                complaints = InlineKeyboardButton("Скарги", callback_data=cb_inline.new(action="complaints_show",
+                                                                                        data=doc['announcementID']))
+                actualize = InlineKeyboardButton("Актуалізація", callback_data=cb_inline.new(action="actualize",
+                                                                                             data=doc[
+                                                                                                 'announcementID']))
+                mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize)
                 if doc['buttons']['section'] == ['Продати']:
                     media = types.MediaGroup()
-                    for image in doc['input']['photoUrl']:
+                    for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
                     await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
@@ -286,7 +289,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                        f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
                 elif doc['buttons']['section'] == ['Здати в оренду']:
                     media = types.MediaGroup()
-                    for image in doc['input']['photoUrl']:
+                    for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
                     await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
@@ -300,7 +303,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
 
                 elif doc['buttons']['section'] == ['Купити']:
                     media = types.MediaGroup()
-                    for image in doc['input']['photoUrl']:
+                    for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
                     await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
@@ -315,7 +318,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
 
                 elif doc['buttons']['section'] == ['Орендувати']:
                     media = types.MediaGroup()
-                    for image in doc['input']['photoUrl']:
+                    for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
                     await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
@@ -407,7 +410,7 @@ async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand 
 
 @dp.callback_query_handler(text="edit")
 async def update(callback_query: types.CallbackQuery):
-    actualize = InlineKeyboardButton(text="Актуалізувати", callback_data="actualize")
+    actualize = InlineKeyboardButton(text="Актуалізувати", callback_data="actualize_set")
     update = InlineKeyboardButton(text="Редагувати", callback_data="update")
     delete = InlineKeyboardButton(text="Видалити", callback_data="delete")
     back = InlineKeyboardButton(text="Назад🔙", callback_data="back")
@@ -455,6 +458,7 @@ def check_id_form2(user_id):
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
     for doc in docs:
+        print(doc.id)
         if str(user_id) != str(doc.id):
             print(doc.to_dict())
             for id, announcement in doc.to_dict().items():
@@ -966,7 +970,7 @@ async def web_app(message: types.Message, callback_data=None):
 
                                             media = types.MediaGroup()
                                             if temp % 6 != 0:
-                                                for bot_image in announcement['input']['photoUrl']:
+                                                for bot_image in announcement['photoUrl']:
                                                     details = InlineKeyboardButton(text="Детальніше",
                                                                                    callback_data=cb_inline.new(
                                                                                        action="details_bot",
@@ -1042,6 +1046,7 @@ async def web_app(message: types.Message, callback_data=None):
         check_id_form2(message.from_user.id)
         global count_of_coins
         count_of_coins -= 10
+        print(count_of_coins)
         control_table = db.Table("control_data", metadata, autoload_with=engine)
         update_query = db.update(control_table).where(
             control_table.c.user_id == message.from_user.id and control_table.c.coins >= 10).values(
@@ -1050,6 +1055,11 @@ async def web_app(message: types.Message, callback_data=None):
         connection.commit()
         back = InlineKeyboardButton('Повернутися до меню', callback_data='start')
         mar = InlineKeyboardMarkup().add(back)
+        selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
+        selection_result = connection.execute(selection_query)
+        for row in selection_result:
+            if row[-1]:
+                print(row)
         await bot.send_message(message.from_user.id, "Оголошення успішно створено!", reply_markup=mar)
 
 
@@ -1215,7 +1225,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                             for announcement in announcements:
                                 if announcement['announcementID'] in ann_ids:
                                     media = types.MediaGroup()
-                                    for bot_image in announcement['input']['photoUrl']:
+                                    for bot_image in announcement['photoUrl']:
                                         details = InlineKeyboardButton(text="Детальніше",
                                                                        callback_data=cb_inline.new(action="details_in_fav",
                                                                                                    data=[announcement[
@@ -1405,7 +1415,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                             for announcement in announcements:
                                 if callback_data['data'] in announcement['GEO']['complex']:
                                     media = types.MediaGroup()
-                                    for bot_image in announcement['input']['photoUrl']:
+                                    for bot_image in announcement['photoUrl']:
                                         details = InlineKeyboardButton(text="Детальніше",
                                                                        callback_data=cb_inline.new(
                                                                            action="details_in_fav",
