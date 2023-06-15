@@ -94,7 +94,7 @@ async def command_start(message: types.Message):
                                                  "За порушення правил — можливий бан!")
     time.sleep(2)
     send_num = KeyboardButton("Поділитися номером телефону", request_contact=True)
-    mar = ReplyKeyboardMarkup(resize_keyboard=True).add(send_num)
+    mar = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(send_num)
     await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону", reply_markup=mar)
 
     @dp.message_handler()
@@ -271,11 +271,11 @@ async def sell_ann(callback_query: types.CallbackQuery):
                         media.attach_photo(types.InputMediaPhoto(image['url']))
                     await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
-                                                                                       f"📍Розташування: {doc['GEO']['currentCity']} {doc['GEO']['streets']}\n"
+                                                                                       f"📍Розташування: {doc['GEO']['currentCity'][0]} {doc['GEO']['streets'][0]}\n"
                                                                                        f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                        f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                        f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
-                                                                                       f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                       f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
                                                                                        f"💰Ціна: {doc['input']['cost'][0]}\n"
                                                                                        f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
                 elif doc['buttons']['section'] == ['Здати в оренду']:
@@ -288,7 +288,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"📫{doc['GEO']['googleAdress'][1]['long_name']}, {doc['GEO']['googleAdress'][0]['long_name']}\n"
                                                                                    f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                    f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
-                                                                                   f"🛏{doc['buttons']['numbRooms'][0]} кімнат\n"
+                                                                                   f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
                                                                                    f"💰Ціна: {doc['input']['cost'][0]}\n"
                                                                                    f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
@@ -303,7 +303,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"📫{' '.join(doc['GEO']['streets'])}\n"
                                                                                    f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
                                                                                    f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                                   f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                                   f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
                                                                                    f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
                                                                                    f"👥{doc['buttons']['role']}", reply_markup=mar)
 
@@ -318,7 +318,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"📫{' '.join(doc['GEO']['streets'])}\n"
                                                                                    f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
                                                                                    f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                                   f"🛏{' '.join(doc['buttons']['numbRooms'])} кімнат\n"
+                                                                                   f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
                                                                                    f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
                                                                                    f"👥{doc['buttons']['role']}", reply_markup=mar)
 
@@ -333,24 +333,25 @@ async def actualize(callback_query: types.CallbackQuery, callback_data):
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
     for announcements in announcements_list:
-        if str(callback_data['data']) == str(announcements.id):
-            for id, announcement in announcements:
-                if announcement['actualize_date'] == '':
-                    actualize_set = InlineKeyboardButton("Актуалізувати", callback_data=cb_inline.new(action='actualize_set', data=callback_data['data']))
-                    mar = InlineKeyboardMarkup().add(actualize_set)
-                    await bot.edit_message_text("Оголошення не актуалізовано, актуалізуйте будь ласка", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
-                elif announcement['actualize_date'] < dt.date.today() and int(str(dt.date.today() - announcement['actualize_date']).split(' ')[0]) >= 30:
-                    actualize_set = InlineKeyboardButton("Актуалізувати",
-                                                         callback_data=cb_inline.new(action='actualize_set',
-                                                                                     data=callback_data['data']))
-                    mar = InlineKeyboardMarkup().add(actualize_set)
-                    await bot.edit_message_text("Потрібна повторна акуалізація",
-                                                callback_query.from_user.id, callback_query.message.message_id,
-                                                reply_markup=mar)
-                elif announcement['actualize_date'] > dt.date.today():
-                    await bot.edit_message_text(f"Термін актуалізації закінчується {announcement['acualize_date']}\n"
-                                                f"Залишилось: {str(announcement['actualize_date'] - dt.date.today()).split(' ')[0]} днів",
-                                                callback_query.from_user.id, callback_query.message.message_id)
+        if str(callback_query.from_user.id) == str(announcements.id):
+            for id, announcement in announcements.to_dict().items():
+                if str(callback_data['data']) == str(id):
+                    if announcement['actualize_date'] == '':
+                        actualize_set = InlineKeyboardButton("Актуалізувати", callback_data=cb_inline.new(action='actualize_set', data=callback_data['data']))
+                        mar = InlineKeyboardMarkup().add(actualize_set)
+                        await bot.edit_message_text("Оголошення не актуалізовано, актуалізуйте будь ласка", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
+                    elif announcement['actualize_date'] < dt.date.today() and int(str(dt.date.today() - announcement['actualize_date']).split(' ')[0]) >= 30:
+                        actualize_set = InlineKeyboardButton("Актуалізувати",
+                                                             callback_data=cb_inline.new(action='actualize_set',
+                                                                                         data=callback_data['data']))
+                        mar = InlineKeyboardMarkup().add(actualize_set)
+                        await bot.edit_message_text("Потрібна повторна акуалізація",
+                                                    callback_query.from_user.id, callback_query.message.message_id,
+                                                    reply_markup=mar)
+                    elif announcement['actualize_date'] > dt.date.today():
+                        await bot.edit_message_text(f"Термін актуалізації закінчується {announcement['acualize_date']}\n"
+                                                    f"Залишилось: {str(announcement['actualize_date'] - dt.date.today()).split(' ')[0]} днів",
+                                                    callback_query.from_user.id, callback_query.message.message_id)
 
 
 @dp.callback_query_handler(cb_inline.filter(action="actualize_set"))
@@ -363,10 +364,17 @@ async def set_actualize(callback_query: types.CallbackQuery, callback_data):
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
     for announcements in announcements_list:
-        if str(callback_data['data']) == str(announcements.id):
-            for id, announcement in announcements:
-                if id == callback_data['data']:
-                    announcement['actualize_date'] = dt.date.today()
+        if str(callback_query.from_user.id) == str(announcements.id):
+            for id, announcement in announcements.to_dict().items():
+                if str(callback_data['data']) == str(id):
+                    document_ref = fire_base.collection('WebFormTwo').document(str(callback_query.from_user.id))
+                    doc = document_ref.get().to_dict()
+                    if callback_data['data'] in doc:
+                        doc[callback_data['data']]['actualize_date'] = str(dt.date.today())
+                        document_ref.update(doc)
+    back = InlineKeyboardButton(text="Назад", callback_data="announcement")
+    mar = InlineKeyboardMarkup().add(back)
+    await bot.edit_message_text("Актуалізовано", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
 
 
 
