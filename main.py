@@ -818,9 +818,8 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
                     return False
             elif 'Ріелтор' not in doc['buttons']['role'] and role != 'Власник':
                 return False
-
-        if 'Без комісії для покупця' not in doc['buttons']['role'] and commission == 'БЕЗ КОМІСІЇ':
-            return False
+            if 'Без комісії для покупця' in doc['buttons']['role'] and commission != 'БЕЗ КОМІСІЇ':
+                return False
 
         if 'numbRooms' in doc['buttons']:
             if doc['buttons']['numbRooms'] != []:
@@ -939,7 +938,7 @@ async def web_app(message: types.Message, callback_data=None):
                                         phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                                          callback_data=cb_inline.new(
                                                                              action="phone_num_web",
-                                                                             data=json.dumps([row[-3], new_building, row[-1]])))
+                                                                             data=row[-3]))
                                         more = InlineKeyboardButton(text="Показати ще",
                                                                     callback_data=cb_inline.new(action="more",
                                                                                                 data='for_ann'))
@@ -1094,7 +1093,14 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
 async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
-    callback_data['data'] = json.loads(callback_data['data'])
+    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == callback_data['data'])
+    rieltor_result = connection.execute(rieltor_query)
+    rieltor_ann = rieltor_result.fetchone()
+    markers = json.loads(rieltor_ann[-8])
+    new_building = ''
+    if 'newhouse' in markers:
+        new_building = markers['newhouse']
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
@@ -1104,8 +1110,8 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
         if control_element[2]:
             user = control_element
     details = InlineKeyboardButton(text="Детальніше",
-                                   callback_data=cb_inline.new(action="details", data=[callback_data['data'][1],
-                                                                                       callback_data['data'][2]]))
+                                   callback_data=cb_inline.new(action="details", data=[new_building,
+                                                                                       rieltor_ann[-1]]))
     error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
     change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
     stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
@@ -1115,7 +1121,7 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
                                 callback_data=cb_inline.new(action="more", data='for_ann'))
     mar = InlineKeyboardMarkup(row_width=2).add(details, error, change, stop, share,
                                                 more)
-    await bot.edit_message_text(callback_data['data'][2], callback_query.from_user.id,
+    await bot.edit_message_text(rieltor_ann[-1], callback_query.from_user.id,
                                 callback_query.message.message_id, reply_markup=mar)
 
 
