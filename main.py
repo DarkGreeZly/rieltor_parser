@@ -93,36 +93,27 @@ async def command_start(message: types.Message):
                                                  "договір з власником.\n"
                                                  "За порушення правил — можливий бан!")
     time.sleep(2)
-    await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону")
+    send_num = KeyboardButton("Поділитися номером телефону", request_contact=True)
+    mar = ReplyKeyboardMarkup(resize_keyboard=True).add(send_num)
+    await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону", reply_markup=mar)
 
     @dp.message_handler()
+    @dp.message_handler(content_types=types.ContentType.CONTACT)
     async def user_number(message: types.Message):
         global phone_number
-        if message.text[0] != '/':
-            continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
-            mar = InlineKeyboardMarkup().add(continue_button)
+        continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
+        mar = InlineKeyboardMarkup().add(continue_button)
+        if message.contact.phone_number is None:
             check_number = phonenumbers.parse(message.text)
             if phonenumbers.is_valid_number(check_number):
                 phone_number = message.text
                 await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
             else:
                 await bot.send_message(message.from_user.id,
-                                       "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
-
-
-# @dp.message_handler()
-# async def user_number(message: types.Message):
-#     global phone_number
-#     if message.text[0] != '/':
-#         continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
-#         mar = InlineKeyboardMarkup().add(continue_button)
-#         check_number = phonenumbers.parse(message.text)
-#         if phonenumbers.is_valid_number(check_number):
-#             phone_number = message.text
-#             await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
-#         else:
-#             await bot.send_message(message.from_user.id,
-#                                    "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
+                                        "Невірний формат номеру, спробуйте в такому форматі - +380xxxxxxxxx")
+        else:
+            phone_number = message.contact.phone_number
+            await bot.send_message(message.from_user.id, "Номер затверджено✅", reply_markup=mar)
 
 
 @dp.message_handler(commands=['add'])
@@ -302,10 +293,10 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
                 elif doc['buttons']['section'] == ['Купити']:
-                    media = types.MediaGroup()
-                    for image in doc['photoUrl']:
-                        media.attach_photo(types.InputMediaPhoto(image['url']))
-                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    # media = types.MediaGroup()
+                    # for image in doc['photoUrl']:
+                    #     media.attach_photo(types.InputMediaPhoto(image['url']))
+                    # await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                    f"📍Розташування: {doc['GEO']['currentCity']}\n"
                                                                                    f"Ⓜ {doc['GEO']['metroStation']}"
@@ -317,10 +308,10 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"👥{doc['buttons']['role']}", reply_markup=mar)
 
                 elif doc['buttons']['section'] == ['Орендувати']:
-                    media = types.MediaGroup()
-                    for image in doc['photoUrl']:
-                        media.attach_photo(types.InputMediaPhoto(image['url']))
-                    await bot.send_media_group(callback_query.from_user.id, media=media)
+                    # media = types.MediaGroup()
+                    # for image in doc['photoUrl']:
+                    #     media.attach_photo(types.InputMediaPhoto(image['url']))
+                    # await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                                    f"📍Розташування: {doc['GEO']['currentCity']}\n"
                                                                                    f"Ⓜ {doc['GEO']['metroStation']}"
