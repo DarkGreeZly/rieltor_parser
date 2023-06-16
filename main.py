@@ -907,7 +907,7 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
 async def web_app(message: types.Message, callback_data=None):
     if callback_data == None:
         callback_data = {'data': ''}
-    if str(message.web_app_data.data) == 'completed' or callback_data['data'] == 'for_ann':
+    if callback_data['data'] == 'for_ann' or str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
         global current_row, temp, not_checked
         rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
