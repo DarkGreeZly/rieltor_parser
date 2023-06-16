@@ -233,10 +233,10 @@ async def announcement_menu(callback_query: types.CallbackQuery, command: types.
                     count_of_purchases += 1
                 elif doc['buttons']['section'] == ['Орендувати']:
                     count_of_leases += 1
-    sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data="show_ann")
-    rent_out = InlineKeyboardButton(text=f"Оренда({count_of_rents})", callback_data="show_ann")
-    purchase = InlineKeyboardButton(text=f"Куплю({count_of_purchases})", callback_data="show_ann")
-    rent_in = InlineKeyboardButton(text=f"Зніму({count_of_leases})", callback_data="show_ann")
+    sell = InlineKeyboardButton(text=f"Продам({count_of_sells})", callback_data=cb_inline.new(action="show_ann", data="sell"))
+    rent_out = InlineKeyboardButton(text=f"Оренда({count_of_rents})", callback_data=cb_inline.new(action="show_ann", data="rent_out"))
+    purchase = InlineKeyboardButton(text=f"Куплю({count_of_purchases})", callback_data=cb_inline.new(action="show_ann", data="purchase"))
+    rent_in = InlineKeyboardButton(text=f"Зніму({count_of_leases})", callback_data=cb_inline.new(action="show_ann", data="rent_in"))
     back = InlineKeyboardButton(text="Назад🔙", callback_data="search")
     mar = InlineKeyboardMarkup(row_width=2).add(sell, rent_out, purchase, rent_in, back)
     if command and command.command == "my_advertisements":
@@ -246,8 +246,8 @@ async def announcement_menu(callback_query: types.CallbackQuery, command: types.
                                     text="Мої оголошення", reply_markup=mar)
 
 
-@dp.callback_query_handler(text="show_ann")
-async def sell_ann(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(cb_inline.filter(action="show_ann"))
+async def sell_ann(callback_query: types.CallbackQuery, callback_data):
     fire_base = firestore.client()
 
     collection_ref = fire_base.collection('WebFormTwo')
@@ -264,8 +264,10 @@ async def sell_ann(callback_query: types.CallbackQuery):
                 actualize = InlineKeyboardButton("Актуалізація", callback_data=cb_inline.new(action="actualize",
                                                                                              data=doc[
                                                                                                  'announcementID']))
-                mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize)
-                if doc['buttons']['section'] == ['Продати']:
+                non_actualize = InlineKeyboardButton("Не актуально",
+                                                     callback_data=cb_inline.new(action="deactualization", data=id))
+                mar = InlineKeyboardMarkup(row_width=1).add(complaints, actualize, non_actualize)
+                if doc['buttons']['section'] == ['Продати'] and callback_data['data'] == "sell":
                     media = types.MediaGroup()
                     for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
@@ -276,9 +278,9 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                        f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                        f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                                        f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
-                                                                                       f"💰Ціна: {doc['input']['cost'][0]}\n"
+                                                                                       f"💰Ціна: {doc['input']['cost'][0]}$\n"
                                                                                        f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
-                elif doc['buttons']['section'] == ['Здати в оренду']:
+                elif doc['buttons']['section'] == ['Здати в оренду'] and callback_data['data'] == "rent_out":
                     media = types.MediaGroup()
                     for image in doc['photoUrl']:
                         media.attach_photo(types.InputMediaPhoto(image['url']))
@@ -289,10 +291,10 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"🏢{doc['input']['areaFloor'][0]} з {doc['input']['areaFloorInHouse'][0]}\n"
                                                                                    f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                                    f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
-                                                                                   f"💰Ціна: {doc['input']['cost'][0]}\n"
+                                                                                   f"💰Ціна: {doc['input']['cost'][0]} грн\n"
                                                                                    f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
-                elif doc['buttons']['section'] == ['Купити']:
+                elif doc['buttons']['section'] == ['Купити'] and callback_data['data'] == "purchase":
                     # media = types.MediaGroup()
                     # for image in doc['photoUrl']:
                     #     media.attach_photo(types.InputMediaPhoto(image['url']))
@@ -304,10 +306,10 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
                                                                                    f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
                                                                                    f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
-                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])}$\n"
                                                                                    f"👥{doc['buttons']['role']}", reply_markup=mar)
 
-                elif doc['buttons']['section'] == ['Орендувати']:
+                elif doc['buttons']['section'] == ['Орендувати'] and callback_data['data'] == "rent_in":
                     # media = types.MediaGroup()
                     # for image in doc['photoUrl']:
                     #     media.attach_photo(types.InputMediaPhoto(image['url']))
@@ -319,7 +321,7 @@ async def sell_ann(callback_query: types.CallbackQuery):
                                                                                    f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
                                                                                    f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
                                                                                    f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
-                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])}\n"
+                                                                                   f"💰Ціна:{'-'.join(doc['input']['cost'])} грн\n"
                                                                                    f"👥{doc['buttons']['role']}", reply_markup=mar)
 
 
@@ -376,6 +378,20 @@ async def set_actualize(callback_query: types.CallbackQuery, callback_data):
     mar = InlineKeyboardMarkup().add(back)
     await bot.edit_message_text("Актуалізовано", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
 
+
+@dp.callback_query_handler(cb_inline.filter(action="deactualization"))
+async def deactualization(callback_query: types.CallbackQuery, callback_data):
+    fire_base = firestore.client()
+
+    collection_ref = fire_base.collection('WebFormTwo').document(str(callback_query.from_user.id))
+
+    collection_watch = collection_ref.on_snapshot(on_snapshot)
+
+    document = collection_ref.get().to_dict()
+    if str(callback_data['data']) in document:
+        del document[callback_data['data']]
+
+    await bot.send_message(callback_query.from_user.id, "Оголошення видалено")
 
 
 @dp.callback_query_handler(text='not_enough_coins')
@@ -937,8 +953,7 @@ async def web_app(message: types.Message, callback_data=None):
                                     if current_row != last_row:
                                         details = InlineKeyboardButton(text="Детальніше",
                                                                        callback_data=cb_inline.new(action="details",
-                                                                                                   data=[row[-3],
-                                                                                                         new_building]))
+                                                                                                   data=row[-3]))
                                         # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
                                         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                                         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
@@ -1088,12 +1103,20 @@ async def change_search(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(cb_inline.filter(action="details"))
 async def details_view(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране",
-                               callback_data=cb_inline.new(action="add_fav", data=callback_data['data'][0]))
+                               callback_data=cb_inline.new(action="add_fav", data=callback_data['data']))
+    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == str(callback_data['data']))
+    rieltor_res = connection.execute(rieltor_query)
+    rieltor_element = rieltor_res.fetchone()
+    markers = json.loads(rieltor_element[-8])
+    new_building = ''
+    if 'newhouse' in markers:
+        new_building = markers['newhouse']
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
-                                       callback_data=cb_inline.new(action="res_complex", data=callback_data['data'][1]))
+                                       callback_data=cb_inline.new(action="res_complex", data=new_building))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints")
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back",
-                                                                           data=callback_data['data'][0]))
+                                                                           data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Детальніше", reply_markup=mar)
@@ -1139,7 +1162,7 @@ async def back(callback_query: types.CallbackQuery, callback_data):
                                                                                   data=[callback_data['data'][0],
                                                                                         callback_data['data'][1]]))
     error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline.new(action="phone_num",
+    phone_num = InlineKeyboardButton(text="Показати номер телефону", callback_data=cb_inline.new(action="phone_num_web",
                                                                                                  data=[callback_data[
                                                                                                            'data'][0],
                                                                                                        callback_data[
