@@ -1162,7 +1162,7 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
                                 callback_data=cb_inline.new(action="more", data='for_ann'))
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back_ann_text", data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(details, error, change, stop, share,
-                                                more)
+                                                more, back)
     await bot.edit_message_text(rieltor_element[-1], callback_query.from_user.id,
                                 callback_query.message.message_id, reply_markup=mar)
 
