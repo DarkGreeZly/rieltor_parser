@@ -338,11 +338,12 @@ async def actualize(callback_query: types.CallbackQuery, callback_data):
         if str(callback_query.from_user.id) == str(announcements.id):
             for id, announcement in announcements.to_dict().items():
                 if str(callback_data['data']) == str(id):
+                    ann_date = dt.datetime.strptime(announcement['actualize_date'], "%Y-%m-%d")
                     if announcement['actualize_date'] == '':
                         actualize_set = InlineKeyboardButton("Актуалізувати", callback_data=cb_inline.new(action='actualize_set', data=callback_data['data']))
                         mar = InlineKeyboardMarkup().add(actualize_set)
                         await bot.edit_message_text("Оголошення не актуалізовано, актуалізуйте будь ласка", callback_query.from_user.id, callback_query.message.message_id, reply_markup=mar)
-                    elif announcement['actualize_date'] < dt.date.today() and int(str(dt.date.today() - announcement['actualize_date']).split(' ')[0]) >= 30:
+                    elif ann_date < dt.date.today() and int(str(dt.date.today() - announcement['actualize_date']).split(' ')[0]) >= 30:
                         actualize_set = InlineKeyboardButton("Актуалізувати",
                                                              callback_data=cb_inline.new(action='actualize_set',
                                                                                          data=callback_data['data']))
@@ -387,9 +388,7 @@ async def deactualization(callback_query: types.CallbackQuery, callback_data):
 
     collection_watch = collection_ref.on_snapshot(on_snapshot)
 
-    document = collection_ref.get().to_dict()
-    if str(callback_data['data']) in document:
-        del document[callback_data['data']]
+    collection_ref.update({str(callback_data['data']): firestore.DELETE_FIELD})
 
     await bot.send_message(callback_query.from_user.id, "Оголошення видалено")
 
@@ -1353,12 +1352,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                     for bot_image in announcement['photoUrl']:
                                         details = InlineKeyboardButton(text="Детальніше",
                                                                        callback_data=cb_inline.new(action="details_in_fav",
-                                                                                                   data=[announcement[
-                                                                                                             'announcementID'],
-                                                                                                         announcement[
-                                                                                                             'GEO'][
-                                                                                                             'complex'][
-                                                                                                             0]]))
+                                                                                                   data=announcement['announcementID']))
                                         error = InlineKeyboardButton(text="Помилка/Поскаржитись",
                                                                      callback_data=cb_inline.new(action="error",
                                                                                                  data=
@@ -1440,9 +1434,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
             details = InlineKeyboardButton(text="Детальніше",
                                                    callback_data=cb_inline.new(
                                                        action="details_bot",
-                                                       data=[announcement['announcementID'],
-                                                             announcement['GEO']['complex'][
-                                                                 0]]))
+                                                       data=announcement['announcementID']))
             error = InlineKeyboardButton(text="Помилка/Поскаржитись",
                                                  callback_data=cb_inline.new(action="error",
                                                                              data=
@@ -1504,13 +1496,28 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="details_in_fav"))
 async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
+    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == str(callback_data['data']))
+    rieltor_result = connection.execute(rieltor_query)
+    rieltor_element = rieltor_result.fetchone()
+    new_building = ''
+    announcements = check_id_form2(callback_query.from_user.id)
+    if rieltor_element:
+        markers = json.loads(rieltor_element[-8])
+        if 'newhouse' in markers:
+            new_building = markers['newhouse']
+    else:
+        for announcement in announcements:
+            if str(announcement['annoncementID']) == str(callback_data['data']):
+                if announcement['GEO']['complex']:
+                    new_building = announcement['GEO']['complex']
     fav = InlineKeyboardButton(text="Видалити з обране", callback_data=cb_inline.new(action="del_fav", data=
-    callback_data['data'][0]))
+    callback_data['data']))
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
-                                       callback_data=cb_inline.new(action="res_complex", data=callback_data['data'][1]))
+                                       callback_data=cb_inline.new(action="res_complex", data=new_building))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
-    callback_data['data'][0]))
+    callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Детальніше", reply_markup=mar)
