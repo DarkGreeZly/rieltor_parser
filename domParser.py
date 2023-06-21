@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 import aiohttp
 import asyncio
 import tracemalloc
-import gzip
+import zlib
 import base64
 import json
 from sqlalchemy import select
@@ -283,7 +283,7 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
             region = results[i + 7]
 
             images = json.dumps(images)
-            images = gzip.compress(images.encode())
+            images = zlib.compress(images.encode())
             images = base64.b64encode(images).decode()
             region = [i.strip() for i in region.split(',')]
             region = ', '.join(region)
@@ -351,8 +351,9 @@ async def start_parser():
     time.sleep(3600)
 
 if __name__ == "__main__":
-    while True:
-        now = datetime.datetime.now()
-        if now.hour == 0 and now.minute == 0:
-            asyncio.run(start_parser())
-            time.sleep((24 * 60 * 60) - 10)
+    asyncio.run(start_parser())
+    # while True:
+    #     now = datetime.datetime.now()
+    #     if now.hour == 0 and now.minute == 0:
+    #         asyncio.run(start_parser())
+    #         time.sleep((24 * 60 * 60) - 10)
