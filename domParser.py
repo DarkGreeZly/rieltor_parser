@@ -24,7 +24,7 @@ urls_parameters = ['flats-sale/',
                    'commercials-rent/']
 
 metadata = db.MetaData()
-engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
 
 
 def create_base(engine):
