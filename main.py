@@ -32,7 +32,7 @@ TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
@@ -52,7 +52,7 @@ def open_rieltor_data():
     rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
     select_query = db.select(rieltor_table)
     selection_result = connection.execute(select_query)
-    current_row = selection_result.fetchone()
+    current_row = selection_result.fetchall()[0]
     temp = 1
 
 
@@ -108,7 +108,7 @@ async def command_start(message: types.Message):
         global phone_number
         continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
         mar = InlineKeyboardMarkup().add(continue_button)
-        if message.contact.phone_number is None:
+        if message.contact.phone_number and message.contact.phone_number is None:
             check_number = phonenumbers.parse(message.text)
             if phonenumbers.is_valid_number(check_number):
                 phone_number = message.text
