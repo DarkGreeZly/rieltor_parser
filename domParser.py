@@ -1,3 +1,4 @@
+import datetime
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -327,33 +328,31 @@ async def start_parser():
     global rieltor_data
     rieltor_data = create_base(engine)
     connection = engine.connect()
-    while True:
-        delete_query = db.delete(rieltor_data)
-        connection.execute(delete_query)
-        connection.commit()
-        for city in cities:
-            print(city, cities[city])
-            for option in urls_parameters:
+    delete_query = db.delete(rieltor_data)
+    connection.execute(delete_query)
+    connection.commit()
+    for city in cities:
+        print(city, cities[city])
+        for option in urls_parameters:
                 # try:
-                await template_cards(city, cities[city], option, rieltor_data, connection)
+            await template_cards(city, cities[city], option, rieltor_data, connection)
                 # except Exception:
                 #     time.sleep(10)
                 #     pass
-        for obl in obls:
-            print(obls[obl])
-            for option in urls_parameters:
-                try:
-                    await template_cards(obl, obls[obl], option, rieltor_data, connection)
-                except Exception:
-                    time.sleep(10)
-                    pass
-        print("parsing completed")
-        rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
-        rieltor_query = select(rieltor_table)
-        rieltor_result = connection.execute(rieltor_query)
-        for row in rieltor_result.fetchall():
-            print(row)
-        time.sleep(3600)
+    for obl in obls:
+        print(obls[obl])
+        for option in urls_parameters:
+            try:
+                await template_cards(obl, obls[obl], option, rieltor_data, connection)
+            except Exception:
+                time.sleep(10)
+                pass
+    print("parsing completed")
+    time.sleep(3600)
 
 if __name__ == "__main__":
-    asyncio.run(start_parser())
+    while True:
+        now = datetime.datetime.now()
+        if now.hour == 0 and now.minute == 0:
+            asyncio.run(start_parser())
+            time.sleep((24 * 60 * 60) - 10)
