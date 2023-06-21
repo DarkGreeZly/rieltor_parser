@@ -2,7 +2,10 @@ import json
 import logging
 import re
 import time
+import zlib
+
 import requests
+from domParser import start_parser
 
 import numpy as np
 from aiogram import Bot, Dispatcher, executor, types
@@ -11,6 +14,7 @@ import sqlalchemy as db
 from sqlalchemy import select
 from sqlalchemy.sql.expression import exists
 from aiogram.utils.callback_data import CallbackData
+import base64
 from aiogram.utils import markdown
 
 from shapely.geometry import Point
@@ -28,7 +32,7 @@ TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-engine = db.create_engine("sqlite:///from_rieltor1.db")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
@@ -944,7 +948,9 @@ async def web_app(message: types.Message, callback_data=None):
                     not_checked = len(rows) - temp
                     current_row = row
 
-                    images = json.loads(row[-6])
+                    images = base64.b64decode(row[-6].encode())
+                    images = zlib.decompress(images).decode()
+                    images = json.loads(images)
                     media = types.MediaGroup()
                     count = 0
                     markers = json.loads(row[-8])
@@ -1315,7 +1321,9 @@ async def show_favorite(callback_query: types.CallbackQuery):
                 rieltor_selection = select(rieltor_table).where(rieltor_table.c.rieltor_id == control_element[3])
                 rieltor_selection_result = connection.execute(rieltor_selection)
                 row = rieltor_selection_result.fetchone()
-                images = json.loads(row[-6])
+                images = base64.b64decode(row[-6].encode())
+                images = zlib.decompress(images).decode()
+                images = json.loads(images)
                 markers = json.loads(row[6])
                 count = 0
                 media = types.MediaGroup()
@@ -1598,7 +1606,9 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
         markers = json.loads(row[-8])
         if 'newhouse' in markers:
             if callback_data['data'] == markers['newhouse']:
-                images = json.loads(row[-6])
+                images = base64.b64decode(row[-6].encode())
+                images = zlib.decompress(images).decode()
+                images = json.loads(images)
                 count = 0
                 media = types.MediaGroup()
                 share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1710,12 +1720,12 @@ async def details_in_complex(callback_query: types.CallbackQuery, callback_data)
 def create_db_control():
     user_data = db.Table("control_data", metadata,
                          db.Column("id", db.Integer, primary_key=True),
-                         db.Column("user_id", db.String),
-                         db.Column("phone_number", db.String),
-                         db.Column("favorite", db.String),
-                         db.Column("complaint", db.String),
-                         db.Column("announcement_id", db.String),
-                         db.Column("referral", db.String),
+                         db.Column("user_id", db.String(250)),
+                         db.Column("phone_number", db.String(250)),
+                         db.Column("favorite", db.String(250)),
+                         db.Column("complaint", db.String(250)),
+                         db.Column("announcement_id", db.String(250)),
+                         db.Column("referral", db.String(250)),
                          db.Column("support", db.Boolean, default=False),
                          db.Column("coins", db.Integer, default=0))
     metadata.create_all(engine)
