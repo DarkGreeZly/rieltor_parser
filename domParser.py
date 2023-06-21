@@ -348,7 +348,7 @@ async def start_parser():
                 time.sleep(10)
                 pass
     print("parsing completed")
-    time.sleep(3600)
+
 
 if __name__ == "__main__":
     asyncio.run(start_parser())
