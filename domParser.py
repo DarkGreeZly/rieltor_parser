@@ -24,12 +24,12 @@ urls_parameters = ['flats-sale/',
                    'commercials-rent/']
 
 metadata = db.MetaData()
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 
 
 def create_base(engine):
     rieltor_data = db.Table("rieltor_data", metadata,
-                            db.Column("id", db.Integer, primary_key=True, autoincrement=1),
+                            db.Column("id", db.Integer, primary_key=True, autoincrement=True),
                             db.Column("city", db.String(250)),
                             db.Column("city_name", db.String(250)),
                             db.Column("region", db.String(250)),
@@ -351,9 +351,9 @@ async def start_parser():
 
 
 if __name__ == "__main__":
-    asyncio.run(start_parser())
-    # while True:
-    #     now = datetime.datetime.now()
-    #     if now.hour == 0 and now.minute == 0:
-    #         asyncio.run(start_parser())
-    #         time.sleep((24 * 60 * 60) - 10)
+    # asyncio.run(start_parser())
+    while True:
+        now = datetime.datetime.now()
+        if now.hour == 0 and now.minute == 0:
+            asyncio.run(start_parser())
+            time.sleep((24 * 60 * 60) - 10)
