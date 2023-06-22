@@ -36,6 +36,7 @@ engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBaza
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
+current_num_row = 0
 temp = 1
 cb_inline = CallbackData("post", "action", "data")
 media_id = {}
@@ -931,7 +932,7 @@ async def web_app(message: types.Message, callback_data=None):
         callback_data = {'data': ''}
     if callback_data['data'] == 'for_ann' or str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
-        global current_row, temp, not_checked
+        global current_row, temp, not_checked, current_num_row
         rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
         select_query = db.select(rieltor_table)
         selection_result = connection.execute(select_query)
@@ -943,142 +944,144 @@ async def web_app(message: types.Message, callback_data=None):
 
         for check_row in rows:
             if check_row == current_row:
-                for row_num in range(int(current_row[0]) - 1, len(rows)):
-                    row = rows[row_num]
-                    not_checked = len(rows) - temp
-                    current_row = row
+                for row_num in range(0, len(rows)):
+                    if current_num_row == row_num:
+                        current_num_row = row_num
+                        row = rows[row_num]
+                        not_checked = len(rows) - temp
+                        current_row = row
 
-                    images = base64.b64decode(row[-6].encode())
-                    images = zlib.decompress(images).decode()
-                    images = json.loads(images)
-                    media = types.MediaGroup()
-                    count = 0
-                    markers = json.loads(row[-8])
-                    metro = ''
-                    new_building = ''
-                    landmark = ''
-                    commission = ''
-                    if 'metro' in markers:
-                        metro = markers['metro']
-                    if 'newhouse' in markers:
-                        new_building = markers['newhouse']
-                    if 'landmark' in markers:
-                        landmark = markers['landmark']
-                    if 'commission' in markers:
-                        commission = markers['commission']
-                    if filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
-                               area=row[8], price=row[5], city_name=row[2], role=row[-7],
-                               option=row[-2], street=row[4], metro=metro, room=row[6],
-                               new_building=new_building, commission=commission, land_area=row[9],
-                               landmark=landmark, city=row[2]):
-                        if temp % 6 != 0:
-                            for image in images:
-                                if count < len(images) and count < 10:
-                                    if current_row != last_row:
-                                        details = InlineKeyboardButton(text="Детальніше",
-                                                                       callback_data=cb_inline.new(action="details",
-                                                                                                   data=row[-3]))
-                                        # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
-                                        change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
-                                        stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
-                                        share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
-                                        phone_num = InlineKeyboardButton(text="Показати номер телефону",
-                                                                         callback_data=cb_inline.new(
-                                                                             action="phone_num_web",
-                                                                             data=row[-3]))
-                                        more = InlineKeyboardButton(text="Показати ще",
-                                                                    callback_data=cb_inline.new(action="more",
-                                                                                                data='for_ann'))
-                                        mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
-                                                                                    share,
-                                                                                    more)
-                                        media.attach_photo(types.InputMediaPhoto(image))
-                                    else:
-                                        announcements = check_data_from_user(message.from_user.id)
-                                        control_table = db.Table('control_data', metadata, autoload_with=engine)
-                                        selection_query = select(control_table).where(
-                                            control_table.c.user_id == message.from_user.id)
-                                        selection_res = connection.execute(selection_query)
-                                        user = ""
-                                        for control_element in selection_res.fetchall():
-                                            if control_element[2]:
-                                                user = control_element
-                                        for announcement in announcements:
+                        images = base64.b64decode(row[-6].encode())
+                        images = zlib.decompress(images).decode()
+                        images = json.loads(images)
+                        media = types.MediaGroup()
+                        count = 0
+                        markers = json.loads(row[-8])
+                        metro = ''
+                        new_building = ''
+                        landmark = ''
+                        commission = ''
+                        if 'metro' in markers:
+                            metro = markers['metro']
+                        if 'newhouse' in markers:
+                            new_building = markers['newhouse']
+                        if 'landmark' in markers:
+                            landmark = markers['landmark']
+                        if 'commission' in markers:
+                            commission = markers['commission']
+                        if filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
+                                   area=row[8], price=row[5], city_name=row[2], role=row[-7],
+                                   option=row[-2], street=row[4], metro=metro, room=row[6],
+                                   new_building=new_building, commission=commission, land_area=row[9],
+                                   landmark=landmark, city=row[2]):
+                            if temp % 6 != 0:
+                                for image in images:
+                                    if count < len(images) and count < 10:
+                                        if current_row != last_row:
+                                            details = InlineKeyboardButton(text="Детальніше",
+                                                                           callback_data=cb_inline.new(action="details",
+                                                                                                       data=row[-3]))
+                                            # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                                            change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
+                                            stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
+                                            share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
+                                            phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                                             callback_data=cb_inline.new(
+                                                                                 action="phone_num_web",
+                                                                                 data=row[-3]))
+                                            more = InlineKeyboardButton(text="Показати ще",
+                                                                        callback_data=cb_inline.new(action="more",
+                                                                                                    data='for_ann'))
+                                            mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
+                                                                                        share,
+                                                                                        more)
+                                            media.attach_photo(types.InputMediaPhoto(image))
+                                        else:
+                                            announcements = check_data_from_user(message.from_user.id)
+                                            control_table = db.Table('control_data', metadata, autoload_with=engine)
+                                            selection_query = select(control_table).where(
+                                                control_table.c.user_id == message.from_user.id)
+                                            selection_res = connection.execute(selection_query)
+                                            user = ""
+                                            for control_element in selection_res.fetchall():
+                                                if control_element[2]:
+                                                    user = control_element
+                                            for announcement in announcements:
 
-                                            media = types.MediaGroup()
-                                            if temp % 6 != 0:
-                                                for bot_image in announcement['photoUrl']:
-                                                    details = InlineKeyboardButton(text="Детальніше",
-                                                                                   callback_data=cb_inline.new(
-                                                                                       action="details_bot",
-                                                                                       data=announcement[
-                                                                                           'announcementID']))
-                                                    error = InlineKeyboardButton(text="Помилка/Поскаржитись",
-                                                                                 callback_data=cb_inline.new(
-                                                                                     action="error",
-                                                                                     data=
-                                                                                     announcement[
-                                                                                         'announcementID']))
-                                                    change = InlineKeyboardButton(text="Змінити пошук",
-                                                                                  callback_data="change")
-                                                    stop = InlineKeyboardButton(text="Зупинити пошук",
-                                                                                callback_data="stop")
-                                                    share = InlineKeyboardButton(text="Розповісти про бот",
-                                                                                 callback_data="share")
-                                                    phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                media = types.MediaGroup()
+                                                if temp % 6 != 0:
+                                                    for bot_image in announcement['photoUrl']:
+                                                        details = InlineKeyboardButton(text="Детальніше",
+                                                                                       callback_data=cb_inline.new(
+                                                                                           action="details_bot",
+                                                                                           data=announcement[
+                                                                                               'announcementID']))
+                                                        error = InlineKeyboardButton(text="Помилка/Поскаржитись",
                                                                                      callback_data=cb_inline.new(
-                                                                                         action="phone_num_web",
-                                                                                         data=[announcement['GEO'][
-                                                                                                   'complex'][0],
-                                                                                               user[2]]))
-                                                    more = InlineKeyboardButton(text="Показати ще",
-                                                                                callback_data=cb_inline.new(
-                                                                                    action="more", data='for_ann'))
-                                                    mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num,
-                                                                                                error,
-                                                                                                change, stop, share,
-                                                                                                more)
-                                                    media.attach_photo(types.InputMediaPhoto(bot_image['url']))
-                                                temp += 1
-                                                await bot.send_media_group(message.from_user.id, media=media)
-                                                await bot.send_message(message.from_user.id,
-                                                                       f"📌ID:{announcement['anouncementID']}\n"
-                                                                       f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
-                                                                       f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
-                                                                       f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
-                                                                       f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
-                                                                       f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
-                                                                       f"💰Ціна: {announcement['input']['cost'][0]}\n"
-                                                                       f"👥{announcement['buttons']['role'][0]}",
-                                                                       reply_markup=mar)
-                                            else:
-                                                breaking = True
-                                                temp += 1
-                                                break
+                                                                                         action="error",
+                                                                                         data=
+                                                                                         announcement[
+                                                                                             'announcementID']))
+                                                        change = InlineKeyboardButton(text="Змінити пошук",
+                                                                                      callback_data="change")
+                                                        stop = InlineKeyboardButton(text="Зупинити пошук",
+                                                                                    callback_data="stop")
+                                                        share = InlineKeyboardButton(text="Розповісти про бот",
+                                                                                     callback_data="share")
+                                                        phone_num = InlineKeyboardButton(text="Показати номер телефону",
+                                                                                         callback_data=cb_inline.new(
+                                                                                             action="phone_num_web",
+                                                                                             data=[announcement['GEO'][
+                                                                                                       'complex'][0],
+                                                                                                   user[2]]))
+                                                        more = InlineKeyboardButton(text="Показати ще",
+                                                                                    callback_data=cb_inline.new(
+                                                                                        action="more", data='for_ann'))
+                                                        mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num,
+                                                                                                    error,
+                                                                                                    change, stop, share,
+                                                                                                    more)
+                                                        media.attach_photo(types.InputMediaPhoto(bot_image['url']))
+                                                    temp += 1
+                                                    await bot.send_media_group(message.from_user.id, media=media)
+                                                    await bot.send_message(message.from_user.id,
+                                                                           f"📌ID:{announcement['anouncementID']}\n"
+                                                                           f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                           f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
+                                                                           f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
+                                                                           f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
+                                                                           f"🛏{announcement['buttons']['numbRooms'][0]} кімнат\n"
+                                                                           f"💰Ціна: {announcement['input']['cost'][0]}\n"
+                                                                           f"👥{announcement['buttons']['role'][0]}",
+                                                                           reply_markup=mar)
+                                                else:
+                                                    breaking = True
+                                                    temp += 1
+                                                    break
 
 
-                                elif count == len(images) or count == 10:
-                                    if current_row != last_row:
-                                        temp += 1
-                                        await bot.send_media_group(message.from_user.id, media=media)
-                                        await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                                     f"📍Розташування: {row[3]}\n"
-                                                                                     f"📫{row[4]}\n"
-                                                                                     f"🏢{row[7]}\n"
-                                                                                     f"📈Площа: {row[8]}\n"
-                                                                                     f"🛏{row[6]}\n"
-                                                                                     f"💰Ціна:{row[5]}\n"
-                                                                                     f"👥{row[-7]}",
-                                                               reply_markup=mar)
-                                    else:
+                                    elif count == len(images) or count == 10:
+                                        if current_row != last_row:
+                                            temp += 1
+                                            await bot.send_media_group(message.from_user.id, media=media)
+                                            await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
+                                                                                         f"📍Розташування: {row[3]}\n"
+                                                                                         f"📫{row[4]}\n"
+                                                                                         f"🏢{row[7]}\n"
+                                                                                         f"📈Площа: {row[8]}\n"
+                                                                                         f"🛏{row[6]}\n"
+                                                                                         f"💰Ціна:{row[5]}\n"
+                                                                                         f"👥{row[-7]}",
+                                                                   reply_markup=mar)
+                                        else:
+                                            break
+                                    elif count > len(images) or count > 10:
                                         break
-                                elif count > len(images) or count > 10:
-                                    break
-                                count += 1
-                        else:
-                            breaking = True
-                            temp += 1
-                            break
+                                    count += 1
+                            else:
+                                breaking = True
+                                temp += 1
+                                break
             elif breaking:
                 break
     else:
