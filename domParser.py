@@ -269,10 +269,14 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
             tasks.append(asyncio.ensure_future(get_image(card)))
             tasks.append(asyncio.ensure_future(get_street(card)))
             tasks.append(asyncio.ensure_future(get_region(card)))
+            tasks.append(asyncio.ensure_future(card['data-catalog-item-id']))
+            tasks.append(asyncio.ensure_future(card['data-longitude']))
+            tasks.append(asyncio.ensure_future(card['data-latitude']))
+            tasks.append(asyncio.ensure_future(get_land_area(card)))
 
         results = await asyncio.gather(*tasks)
 
-        for i in range(0, len(results), 8):
+        for i in range(0, len(results), 12):
             phone = results[i]
             price = results[i + 1]
             info = results[i + 2]
@@ -281,16 +285,16 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
             images = results[i + 5]
             street = results[i + 6]
             region = results[i + 7]
+            id = results[i + 8]
+            lg = results[i + 9]
+            lt = results[i + 10]
+            land_area = results[i + 11]
 
             images = json.dumps(images)
             images = zlib.compress(images.encode())
             images = base64.b64encode(images).decode()
             region = [i.strip() for i in region.split(',')]
             region = ', '.join(region)
-            land_area = await get_land_area(card)
-            lg = card['data-longitude']
-            lt = card['data-latitude']
-            id = card['data-catalog-item-id']
             city = city.strip('/')
 
             selection_query = select(rieltor_data).where(rieltor_data.c.rieltor_id == id)

@@ -733,13 +733,13 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
                     return False
             if 'Новобудова' in doc['buttons']['typeHouse']:
                 if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Оренда'] and \
-                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-rent/newhouse':
+                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-rent/newhouse/':
                     return False
                 else:
                     if new_building == {}:
                         return False
                 if doc['buttons']['typeEstate'] == ['Квартира'] and doc['buttons']['section'] == ['Продаж'] and \
-                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-sale/newhouse':
+                        doc['buttons']['typeHouse'] == ['Новобудова'] and option != 'flats-sale/newhouse/':
                     return False
                 else:
                     if new_building == {}:
@@ -798,6 +798,11 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
             areas = [int(i) for i in doc['input']['totalArea']]
             if sum(area) not in range(areas[0], areas[1]):
                 return False
+
+        if doc['buttons']['section'] == ['Продаж'] and (option != 'commercials-sale/' or option != 'flats-sale/' or option != 'flats-sale/newhouse' or option != 'houses-sale/' or option != 'areas-sale/'):
+            return False
+        if doc['buttons']['section'] == ['Оренда'] and (option != 'flats-rent/' or option != 'flats-rent/newhouse/' or option != 'houses-rent/' or option != 'commercials-rent/'):
+            return False
 
         # print(doc['input']['cost'])
         if 'cost' in doc['input'] and 'typeCurrency' in doc['buttons']:
@@ -1047,6 +1052,7 @@ async def web_app(message: types.Message, callback_data=None):
                                                     await bot.send_message(message.from_user.id,
                                                                            f"📌ID:{announcement['anouncementID']}\n"
                                                                            f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                           f"🏢{announcement['GEO']['complex']}\n"
                                                                            f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                            f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                            f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
@@ -1066,6 +1072,7 @@ async def web_app(message: types.Message, callback_data=None):
                                             await bot.send_media_group(message.from_user.id, media=media)
                                             await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
                                                                                          f"📍Розташування: {row[3]}\n"
+                                                                                         f"🏢{new_building}\n"
                                                                                          f"📫{row[4]}\n"
                                                                                          f"🏢{row[7]}\n"
                                                                                          f"📈Площа: {row[8]}\n"
@@ -1207,8 +1214,10 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
     rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == callback_data['data'])
     rieltor_result = connection.execute(rieltor_query)
     row = rieltor_result.fetchone()
-    print(str(row))
-    print(str(callback_data['data']))
+    new_building = ''
+    markers = json.loads(row[-8])
+    if 'newhouse' in markers:
+        new_building = markers['newhouse']
     announcements = check_id_form2(callback_query.from_user.id)
     control_table = db.Table("control_data", metadata, autoload_with=engine)
     control_query = select(control_table).where(str(control_table.c.user_id) == str(callback_query.from_user.id))
@@ -1250,6 +1259,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
             await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                                                         text=f"📌ID:{announcement['anouncementID']}\n"
                                                                         f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                        f"🏢{announcement['GEO']['complex']}\n"
                                                                         f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                         f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                         f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
@@ -1278,6 +1288,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
                 await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                                                         text=f"📌ID:{row[-3]}\n"
                                                                         f"📍Розташування: {row[3]}\n"
+                                                                        f"🏢{new_building}\n"
                                                                         f"📫{row[4]}\n"
                                                                         f"🏢{row[7]}\n"
                                                                         f"📈Площа: {row[8]}\n"
@@ -1381,6 +1392,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                                         await bot.send_message(callback_query.from_user.id,
                                                                f"📌ID:{announcement['anouncementID']}\n"
                                                                f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                               f"🏢{announcement['GEO']['complex']}\n"
                                                                f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
@@ -1393,7 +1405,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                             await bot.send_media_group(callback_query.from_user.id, media=media)
                             await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
                                                                                 f"📍Розташування: {row[1].upper()},"
-                                                                                f" {' '.join(markers)}\n"
+                                                                                f"🏢{new_building}\n"
                                                                                 f"📫 {row[2]}, {row[3]}\n"
                                                                                 f"🏢{row[4]}\n"
                                                                                 f"📈Площа: {row[5]}\n"
@@ -1432,6 +1444,10 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
     rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == (callback_data['data']))
     rieltor_result = connection.execute(rieltor_query)
     row = rieltor_result.fetchone()
+    markers = json.loads(row[-8])
+    new_building = ''
+    if 'newhouse' in markers:
+        new_building = markers['newhouse']
     announcements = check_id_form2(callback_query.from_user.id)
     control_table = db.Table("control_data", metadata, autoload_with=engine)
     control_query = select(control_table).where(str(control_table.c.user_id) == str(callback_query.from_user.id))
@@ -1468,6 +1484,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
                                                         more)
             await bot.send_message(callback_query.from_user.id, f"📌ID:{announcement['anouncementID']}\n"
                                                                 f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                                f"🏢{announcement['GEO']['complex']}\n"
                                                                 f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                 f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                 f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
@@ -1494,6 +1511,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
                                                         more)
             await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
                                                                 f"📍Розташування: {row[3]}\n"
+                                                                f"🏢{new_building}\n"
                                                                 f"📫{row[4]}\n"
                                                                 f"🏢{row[7]}\n"
                                                                 f"📈Площа: {row[8]}\n"
@@ -1669,6 +1687,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                         await bot.send_message(callback_query.from_user.id,
                                                                f"📌ID:{announcement['anouncementID']}\n"
                                                                f"📍Розташування: {announcements['GEO']['currentCity']} {announcement['GEO']['streets']}\n"
+                                                               f"🏢{announcement['GEO']['complex']}\n"
                                                                f"📫{announcement['GEO']['googleAdress'][1]['long_name']}, {announcement['GEO']['googleAdress'][0]['long_name']}\n"
                                                                f"🏢{announcement['input']['areaFloor'][0]} з {announcement['input']['areaFloorInHouse'][0]}\n"
                                                                f"📈Площа: {announcement['input']['areaTotal'][0]} м²\n"
@@ -1678,9 +1697,14 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                reply_markup=mar)
                     elif count == len(images) or count == 10:
                         if row != last_row:
+                            markers = json.loads(row[-8])
+                            new_building = ''
+                            if 'newhouse' in markers:
+                                new_building = markers['newhouse']
                             await bot.send_media_group(callback_query.from_user.id, media=media)
                             await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
                                                                                 f"📍Розташування: {row[3]}\n"
+                                                                                f"🏢{new_building}\n"
                                                                                 f"📫{row[4]}\n"
                                                                                 f"🏢{row[7]}\n"
                                                                                 f"📈Площа: {row[8]}\n"
