@@ -320,7 +320,7 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
                 connection.execute(insertion_query)
 
                 connection.commit()
-                snapshot_after = tracemalloc.take_snapshot()  # Capture memory allocation after the processing
+                # snapshot_after = tracemalloc.take_snapshot()  # Capture memory allocation after the processing
                 # top_stats = snapshot_after.compare_to(snapshot_before, 'lineno')
                 # for stat in top_stats[:10]:  # Print top 10 statistics
                 #     print(stat)
