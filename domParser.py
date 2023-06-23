@@ -367,7 +367,7 @@ async def start_parser():
 
 
 if __name__ == "__main__":
-    # asyncio.run(start_parser())
+    asyncio.run(start_parser())
     while True:
         now = datetime.datetime.now()
         if now.hour == 0 and now.minute == 0:
