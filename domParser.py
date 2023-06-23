@@ -248,6 +248,18 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
             phone_number = phone.find('a')
             return phone_number.text
 
+        async def get_card_id(card):
+            card_id = card['data-catalog-item-id']
+            return card_id
+
+        async def get_longitude(card):
+            long = card['data-longitude']
+            return long
+
+        async def get_latitude(card):
+            lat = card['data-latitude']
+            return lat
+
         tracemalloc.start()
 
         async with aiohttp.ClientSession() as session:
@@ -269,9 +281,9 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
             tasks.append(asyncio.ensure_future(get_image(card)))
             tasks.append(asyncio.ensure_future(get_street(card)))
             tasks.append(asyncio.ensure_future(get_region(card)))
-            tasks.append(asyncio.ensure_future(card['data-catalog-item-id']))
-            tasks.append(asyncio.ensure_future(card['data-longitude']))
-            tasks.append(asyncio.ensure_future(card['data-latitude']))
+            tasks.append(asyncio.ensure_future(get_card_id(card)))
+            tasks.append(asyncio.ensure_future(get_longitude(card)))
+            tasks.append(asyncio.ensure_future(get_latitude(card)))
             tasks.append(asyncio.ensure_future(get_land_area(card)))
 
         results = await asyncio.gather(*tasks)
@@ -355,9 +367,9 @@ async def start_parser():
 
 
 if __name__ == "__main__":
-    # asyncio.run(start_parser())
-    while True:
-        now = datetime.datetime.now()
-        if now.hour == 0 and now.minute == 0:
-            asyncio.run(start_parser())
-            time.sleep((24 * 60 * 60) - 10)
+    asyncio.run(start_parser())
+    # while True:
+    #     now = datetime.datetime.now()
+    #     if now.hour == 0 and now.minute == 0:
+    #         asyncio.run(start_parser())
+    #         time.sleep((24 * 60 * 60) - 10)
