@@ -32,7 +32,7 @@ TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
@@ -1193,7 +1193,7 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
             user = control_element
     details = InlineKeyboardButton(text="Детальніше",
                                    callback_data=cb_inline.new(action="details", data=callback_data['data']))
-    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+    error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=callback_data['data']))
     change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
     stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
     share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1229,7 +1229,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
             user = user_row
             break
     for announcement in announcements:
-        if announcement['announcementID'] == callback_data['data']:
+        if str(announcement['announcementID']) == str(callback_data['data']):
             rieltor_id = announcement['announcementID']
             details = InlineKeyboardButton(text="Детальніше",
                                                    callback_data=cb_inline.new(
