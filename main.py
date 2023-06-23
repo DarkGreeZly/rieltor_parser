@@ -799,10 +799,10 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
             if sum(area) not in range(areas[0], areas[1]):
                 return False
 
-        if doc['buttons']['section'] == ['Продаж'] and (option != 'commercials-sale/' or option != 'flats-sale/' or option != 'flats-sale/newhouse' or option != 'houses-sale/' or option != 'areas-sale/'):
-            return False
-        if doc['buttons']['section'] == ['Оренда'] and (option != 'flats-rent/' or option != 'flats-rent/newhouse/' or option != 'houses-rent/' or option != 'commercials-rent/'):
-            return False
+        # if doc['buttons']['section'] == ['Продаж'] and (option != 'commercials-sale/' or option != 'flats-sale/' or option != 'flats-sale/newhouse' or option != 'houses-sale/' or option != 'areas-sale/'):
+        #     return False
+        # if doc['buttons']['section'] == ['Оренда'] and (option != 'flats-rent/' or option != 'flats-rent/newhouse/' or option != 'houses-rent/' or option != 'commercials-rent/'):
+        #     return False
 
         # print(doc['input']['cost'])
         if 'cost' in doc['input'] and 'typeCurrency' in doc['buttons']:
