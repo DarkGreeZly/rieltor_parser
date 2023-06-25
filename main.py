@@ -109,7 +109,12 @@ async def command_start(message: types.Message):
         global phone_number
         continue_button = InlineKeyboardButton("Продовжити⏩", callback_data="start")
         mar = InlineKeyboardMarkup().add(continue_button)
-        if message.contact.phone_number and message.contact.phone_number is None:
+        phone = ''
+        try:
+            phone = message.contact.phone_number
+        except Exception:
+            phone = None
+        if phone is None:
             check_number = phonenumbers.parse(message.text)
             if phonenumbers.is_valid_number(check_number):
                 phone_number = message.text
@@ -288,7 +293,8 @@ async def sell_ann(callback_query: types.CallbackQuery, callback_data):
                                                                         f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                         f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
                                                                         f"💰Ціна: {doc['input']['cost'][0]}$\n"
-                                                                        f"👥{doc['buttons']['role'][0]}",
+                                                                        f"👥{doc['buttons']['role'][0]}\n"
+                                                                        f"{' '.join(doc['buttons']['newBuilding'])}",
                                            reply_markup=mar)
                 elif doc['buttons']['section'] == ['Здати в оренду'] and callback_data['data'] == "rent_out":
                     media = types.MediaGroup()
@@ -302,7 +308,8 @@ async def sell_ann(callback_query: types.CallbackQuery, callback_data):
                                                                         f"📈Площа: {doc['input']['areaTotal'][0]} м²\n"
                                                                         f"🛏Кількість кімнат: {doc['buttons']['numbRooms'][0]}\n"
                                                                         f"💰Ціна: {doc['input']['cost'][0]} грн\n"
-                                                                        f"👥{doc['buttons']['role'][0]}",
+                                                                        f"👥{doc['buttons']['role'][0]}\n"
+                                                                        f"{' '.join(doc['buttons']['newBuilding'])}",
                                            reply_markup=mar)
 
                 elif doc['buttons']['section'] == ['Купити'] and callback_data['data'] == "purchase":
@@ -493,6 +500,7 @@ def check_id_form2(user_id):
     for doc in docs:
         if str(user_id) != str(doc.id) and len(str(user_id)) == len(str(doc.id)):
             for id, announcement in doc.to_dict().items():
+                print(announcement)
                 announcements.append(announcement)
     return announcements
 
@@ -598,6 +606,9 @@ def check_data_from_user(user_id):
                     'Оренда'] and announcement['buttons']['typeEstate'] != ['Комерційна Нерухомість'] and \
                         announcement['buttons']['section'] != ['Здати в оренду']:
                     continue
+
+            # if 'newBuilding' in filter['buttons']:
+            #     if 'Будинок зданий' in filter['buttons']['newBuilding'] and
 
             if 'buildingFloor' in filter['input']:
                 floors = [int(i) for i in filter['input']['buildingFloor']]
@@ -930,7 +941,7 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
 @dp.callback_query_handler(cb_inline.filter(action='more'))
 @dp.message_handler(content_types=['web_app_data'])
 async def web_app(message: types.Message, callback_data=None):
-    if callback_data == None:
+    if callback_data is None:
         callback_data = {'data': ''}
     if callback_data['data'] == 'for_ann' or str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
