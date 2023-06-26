@@ -114,6 +114,7 @@ async def command_start(message: types.Message):
             phone = message.contact.phone_number
         except Exception:
             phone = None
+            pass
         if phone is None:
             check_number = phonenumbers.parse(message.text)
             if phonenumbers.is_valid_number(check_number):
