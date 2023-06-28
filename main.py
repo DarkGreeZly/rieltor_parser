@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -5,7 +6,6 @@ import time
 import zlib
 
 import requests
-from domParser import start_parser
 
 import numpy as np
 from aiogram import Bot, Dispatcher, executor, types
@@ -32,7 +32,7 @@ TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
@@ -46,6 +46,7 @@ count_of_coins = 0
 phone_number = ''
 favorites = 0
 count_complaints = 0
+rows = []
 
 
 def open_rieltor_data():
@@ -82,14 +83,14 @@ async def command_start(message: types.Message):
             connection.commit()
 
     await bot.send_message(message.from_user.id, "🏡 Вітаю! Я — єБАЗА нерухомості бот.\n\n"
-                                                 "👋🏻 <b>З моєю допомогою ти зможеш:</b>\n\n"
-                                                 "▫️ знаходити варіанти квартир, будинків за параметрами чи по карті;\n"
-                                                 "▫️ знаходити покупців чи орендарів на свою нерухомість;\n"
-                                                 "▫️ швидко та оперативно отримувати інформацію про нові об'єкти;\n"
-                                                 "▫️ одночасно можеш додати до трьох оголошень в кожну рубрику,"
-                                                 " а якщо буде потрібно більше оголошень — ділись посиланням на бот "
-                                                 "з друзями і отримуй додаткові оголошення.", parse_mode='HTML')
-    time.sleep(2)
+                                                    "👋🏻 <b>З моєю допомогою ти зможеш:</b>\n\n"
+                                                    "▫️ знаходити варіанти квартир, будинків за параметрами чи по карті;\n"
+                                                    "▫️ знаходити покупців чи орендарів на свою нерухомість;\n"
+                                                    "▫️ швидко та оперативно отримувати інформацію про нові об'єкти;\n"
+                                                    "▫️ одночасно можеш додати до трьох оголошень в кожну рубрику,"
+                                                    " а якщо буде потрібно більше оголошень — ділись посиланням на бот "
+                                                    "з друзями і отримуй додаткові оголошення.", parse_mode='HTML')
+    await asyncio.sleep(2)
     await bot.send_message(message.from_user.id, "❗️ Будь-ласка, дотримуйся правил!\n"
                                                  "Заборонено розміщувати “фейкові” оголошення.\n"
                                                  "Якщо продаж/оренда твого об'єкта вже неактуальна — не забудь "
@@ -97,7 +98,7 @@ async def command_start(message: types.Message):
                                                  "Якщо ти ріелтор — розміщуй лише ті оголошення, де в тебе є "
                                                  "договір з власником.\n"
                                                  "За порушення правил — можливий бан!")
-    time.sleep(2)
+    await asyncio.sleep(2)
     send_num = KeyboardButton("Поділитися номером телефону", request_contact=True)
     mar = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(send_num)
     await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону",
@@ -946,7 +947,7 @@ async def web_app(message: types.Message, callback_data=None):
         callback_data = {'data': ''}
     if callback_data['data'] == 'for_ann' or str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
-        global current_row, temp, not_checked, current_num_row
+        global current_row, temp, not_checked, current_num_row, rows
         rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
         select_query = db.select(rieltor_table)
         selection_result = connection.execute(select_query)
@@ -1100,8 +1101,9 @@ async def web_app(message: types.Message, callback_data=None):
                                 breaking = True
                                 temp += 1
                                 break
-            elif breaking:
+            if breaking:
                 break
+
     else:
         # add_new_user('second', message.from_user.id)
         check_id_form2(message.from_user.id)
@@ -1374,7 +1376,7 @@ async def add_fav(callback_query: types.CallbackQuery, callback_data):
     connection.execute(insertion_query)
     connection.commit()
     mess = await bot.send_message(callback_query.from_user.id, f"Оголошення {callback_data['data']} додане до Обране")
-    time.sleep(20)
+    await asyncio.sleep(20)
     await bot.delete_message(callback_query.from_user.id, mess.message_id)
 
 
@@ -1698,7 +1700,7 @@ async def del_fav(callback_query: types.CallbackQuery, callback_data):
             connection.execute(del_query)
             connection.commit()
     mes = await bot.send_message(callback_query.from_user.id, "Оголошення видалено з Обране")
-    time.sleep(10)
+    await asyncio.sleep(10)
     await bot.delete_message(callback_query.from_user.id, mes.message_id)
 
 
@@ -1715,8 +1717,7 @@ async def complaints_view(callback_query: types.CallbackQuery, callback_data):
         callback_data['data'], "Це мій ексклюзив"]))
     mess5 = InlineKeyboardButton(text="Підозрілий об`єкт", callback_data=cb_inline.new(action="complaint", data=[
         callback_data['data'], "Підозрілий об`єкт"]))
-    back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
-    callback_data['data']))
+    back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back_text_ann", data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=3).add(mess1, mess2, mess3, mess4, mess5, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
                                 text="Помилка/Поскаржитись", reply_markup=mar)
