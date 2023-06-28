@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp
 import json
 import logging
 import re
@@ -48,6 +49,19 @@ favorites = 0
 count_complaints = 0
 rows = []
 
+# FIX: Implemented aiohttp GET method
+async def ConvertUSDToUAH(amount: int = 0) -> float:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.exchangerate-api.com/v4/latest/USD") as resp:
+                payload = await resp.json()
+                rate = payload["rates"]["UAH"]
+                return amount * rate
+    except Exception as e:
+        print(f"[ConvertUSDToUAH] {e}")
+        return None
+
+
 
 def open_rieltor_data():
     global current_row, temp
@@ -83,13 +97,13 @@ async def command_start(message: types.Message):
             connection.commit()
 
     await bot.send_message(message.from_user.id, "🏡 Вітаю! Я — єБАЗА нерухомості бот.\n\n"
-                                                    "👋🏻 <b>З моєю допомогою ти зможеш:</b>\n\n"
-                                                    "▫️ знаходити варіанти квартир, будинків за параметрами чи по карті;\n"
-                                                    "▫️ знаходити покупців чи орендарів на свою нерухомість;\n"
-                                                    "▫️ швидко та оперативно отримувати інформацію про нові об'єкти;\n"
-                                                    "▫️ одночасно можеш додати до трьох оголошень в кожну рубрику,"
-                                                    " а якщо буде потрібно більше оголошень — ділись посиланням на бот "
-                                                    "з друзями і отримуй додаткові оголошення.", parse_mode='HTML')
+                                                 "👋🏻 <b>З моєю допомогою ти зможеш:</b>\n\n"
+                                                 "▫️ знаходити варіанти квартир, будинків за параметрами чи по карті;\n"
+                                                 "▫️ знаходити покупців чи орендарів на свою нерухомість;\n"
+                                                 "▫️ швидко та оперативно отримувати інформацію про нові об'єкти;\n"
+                                                 "▫️ одночасно можеш додати до трьох оголошень в кожну рубрику,"
+                                                 " а якщо буде потрібно більше оголошень — ділись посиланням на бот "
+                                                 "з друзями і отримуй додаткові оголошення.", parse_mode='HTML')
     await asyncio.sleep(2)
     await bot.send_message(message.from_user.id, "❗️ Будь-ласка, дотримуйся правил!\n"
                                                  "Заборонено розміщувати “фейкові” оголошення.\n"
@@ -714,7 +728,7 @@ def check_data_from_user(user_id):
         return accepted_announcements
 
 
-def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
+async def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
             new_building, commission, land_area, landmark, city):
     global current_time
     if current_time == '':
@@ -831,17 +845,7 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
                     price = re.findall("\d+", price)
                     price = int(''.join(price))
 
-                    def convert_usd_to_uah(amount):
-                        try:
-                            response = requests.get('https://api.exchangerate-api.com/v4/latest/USD')
-                            data = response.json()
-                            exchange_rate = data['rates']['UAH']
-                            uah_amount = amount * exchange_rate
-                            return uah_amount
-                        except (requests.exceptions.RequestException, KeyError):
-                            return None
-
-                    price = convert_usd_to_uah(int(price))
+                    price = await ConvertUSDToUAH(int(price))
                 else:
                     price = re.findall("\d+", price)
                     price = int(''.join(price))
@@ -984,7 +988,7 @@ async def web_app(message: types.Message, callback_data=None):
                             landmark = markers['landmark']
                         if 'commission' in markers:
                             commission = markers['commission']
-                        if filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
+                        if await filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
                                    area=row[8], price=row[5], city_name=row[2], role=row[-7],
                                    option=row[-2], street=row[4], metro=metro, room=row[6],
                                    new_building=new_building, commission=commission, land_area=row[9],

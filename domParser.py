@@ -1,3 +1,5 @@
+import asyncio
+import aiohttp
 import datetime
 import time
 import requests
@@ -51,23 +53,34 @@ def create_base(engine):
     return rieltor_data
 
 
-def get_cities():
+async def get_cities() -> dict:
     cities = {}
-    html = requests.get(MAIN_URL)
-    soup = BeautifulSoup(html.text, 'html.parser')
-    for city in soup.findAll('div', class_="nav_item_option_geo_city js_nav_input"):
-        cities[city['data-index-url']] = city.text.strip()
-    return cities
+    try:
+        # html = requests.get(MAIN_URL)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(MAIN_URL) as resp:
+                soup = BeautifulSoup(await resp.text(), "html.parser")
+        for city in soup.findAll('div', class_="nav_item_option_geo_city js_nav_input"):
+            cities[city['data-index-url']] = city.text.strip()
+    except Exception as e:
+        print(e)
+    finally:
+        return cities
 
 
-def get_obls(cities):
+async def get_obls(cities):
     obls = {}
-    for city in cities:
-        html = requests.get(MAIN_URL + city)
-        soup = BeautifulSoup(html.text, 'html.parser')
-        for obl in soup.findAll('div', class_='nav_item_option_geo_obl js_nav_input'):
-            obls[obl['data-index-url']] = obl.text.strip()
-    return obls
+    try:
+        async with aiohttp.ClientSession() as session:
+            for city in cities:
+                async with session.get(MAIN_URL + city) as resp:
+                    soup = BeautifulSoup(await resp.text(), "html.parser")
+                    for obl in soup.findAll('div', class_='nav_item_option_geo_obl js_nav_input'):
+                        obls[obl['data-index-url']] = obl.text.strip()
+    except Exception as e:
+        print(e)
+    finally:
+        return obls
 
     # async def template_cards(city, city_name, option, rieltor_data, connection):
     #     async def get_prices(card):
@@ -339,8 +352,8 @@ async def get_page_count(city):
 
 
 async def start_parser():
-    cities = get_cities()
-    obls = get_obls(cities)
+    cities = await get_cities()
+    obls = await get_obls(cities)
     global rieltor_data
     rieltor_data = create_base(engine)
     connection = engine.connect()
@@ -361,7 +374,7 @@ async def start_parser():
             try:
                 await template_cards(obl, obls[obl], option, rieltor_data, connection)
             except Exception:
-                time.sleep(10)
+                await asyncio.sleep(10)
                 pass
     print("parsing completed")
 
