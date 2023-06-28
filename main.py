@@ -1,3 +1,5 @@
+import asyncio
+import aiohttp
 import json
 import logging
 import re
@@ -47,6 +49,19 @@ phone_number = ''
 favorites = 0
 count_complaints = 0
 
+# FIX: Implemented aiohttp GET method
+async def ConvertUSDToUAH(amount: int = 0) -> float:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.exchangerate-api.com/v4/latest/USD") as resp:
+                payload = await resp.json()
+                rate = payload["rates"]["UAH"]
+                return amount * rate
+    except Exception as e:
+        print(f"[ConvertUSDToUAH] {e}")
+        return None
+
+
 
 def open_rieltor_data():
     global current_row, temp
@@ -89,7 +104,7 @@ async def command_start(message: types.Message):
                                                  "▫️ одночасно можеш додати до трьох оголошень в кожну рубрику,"
                                                  " а якщо буде потрібно більше оголошень — ділись посиланням на бот "
                                                  "з друзями і отримуй додаткові оголошення.", parse_mode='HTML')
-    time.sleep(2)
+    await asyncio.sleep(2)
     await bot.send_message(message.from_user.id, "❗️ Будь-ласка, дотримуйся правил!\n"
                                                  "Заборонено розміщувати “фейкові” оголошення.\n"
                                                  "Якщо продаж/оренда твого об'єкта вже неактуальна — не забудь "
@@ -97,7 +112,7 @@ async def command_start(message: types.Message):
                                                  "Якщо ти ріелтор — розміщуй лише ті оголошення, де в тебе є "
                                                  "договір з власником.\n"
                                                  "За порушення правил — можливий бан!")
-    time.sleep(2)
+    await asyncio.sleep(2)
     send_num = KeyboardButton("Поділитися номером телефону", request_contact=True)
     mar = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(send_num)
     await bot.send_message(message.from_user.id, "Для ефективної взаємодії потрібен ваш номер телефону",
@@ -713,7 +728,7 @@ def check_data_from_user(user_id):
         return accepted_announcements
 
 
-def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
+async def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
             new_building, commission, land_area, landmark, city):
     global current_time
     if current_time == '':
@@ -830,17 +845,7 @@ def filters(doc, long, lat, floor, area, price, city_name, role, option, street,
                     price = re.findall("\d+", price)
                     price = int(''.join(price))
 
-                    def convert_usd_to_uah(amount):
-                        try:
-                            response = requests.get('https://api.exchangerate-api.com/v4/latest/USD')
-                            data = response.json()
-                            exchange_rate = data['rates']['UAH']
-                            uah_amount = amount * exchange_rate
-                            return uah_amount
-                        except (requests.exceptions.RequestException, KeyError):
-                            return None
-
-                    price = convert_usd_to_uah(int(price))
+                    price = await ConvertUSDToUAH(int(price))
                 else:
                     price = re.findall("\d+", price)
                     price = int(''.join(price))
@@ -983,7 +988,7 @@ async def web_app(message: types.Message, callback_data=None):
                             landmark = markers['landmark']
                         if 'commission' in markers:
                             commission = markers['commission']
-                        if filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
+                        if await filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
                                    area=row[8], price=row[5], city_name=row[2], role=row[-7],
                                    option=row[-2], street=row[4], metro=metro, room=row[6],
                                    new_building=new_building, commission=commission, land_area=row[9],
@@ -1374,7 +1379,7 @@ async def add_fav(callback_query: types.CallbackQuery, callback_data):
     connection.execute(insertion_query)
     connection.commit()
     mess = await bot.send_message(callback_query.from_user.id, f"Оголошення {callback_data['data']} додане до Обране")
-    time.sleep(20)
+    await asyncio.sleep(20)
     await bot.delete_message(callback_query.from_user.id, mess.message_id)
 
 
@@ -1698,7 +1703,7 @@ async def del_fav(callback_query: types.CallbackQuery, callback_data):
             connection.execute(del_query)
             connection.commit()
     mes = await bot.send_message(callback_query.from_user.id, "Оголошення видалено з Обране")
-    time.sleep(10)
+    await asyncio.sleep(10)
     await bot.delete_message(callback_query.from_user.id, mes.message_id)
 
 
