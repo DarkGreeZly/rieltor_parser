@@ -33,7 +33,7 @@ TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
