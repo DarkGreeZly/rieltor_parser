@@ -1397,9 +1397,17 @@ async def show_favorite(callback_query: types.CallbackQuery):
     if control_elements:
         for control_element in control_elements:
             if control_element[3]:
-                rieltor_selection = select(rieltor_table).where(rieltor_table.c.rieltor_id == control_element[3])
+                rieltor_selection = select(rieltor_table)
                 rieltor_selection_result = connection.execute(rieltor_selection)
-                row = rieltor_selection_result.fetchone()
+                rows = rieltor_selection_result.fetchall()
+                row = ()
+                for element in rows:
+                    if element[-3] == control_element[3]:
+                        row = element
+                    else:
+                        row = False
+                if row == False:
+                    break
                 images = base64.b64decode(row[-6].encode())
                 images = zlib.decompress(images).decode()
                 images = json.loads(images)
