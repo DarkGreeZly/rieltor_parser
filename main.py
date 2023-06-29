@@ -1403,7 +1403,6 @@ async def show_favorite(callback_query: types.CallbackQuery):
                 images = base64.b64decode(row[-6].encode())
                 images = zlib.decompress(images).decode()
                 images = json.loads(images)
-                markers = json.loads(row[6])
                 count = 0
                 media = types.MediaGroup()
                 markers = json.loads(row[-8])
