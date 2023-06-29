@@ -1682,7 +1682,7 @@ async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
                                        callback_data=cb_inline.new(action="res_complex", data=new_building))
     complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
-    back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back", data=
+    back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back_text_ann", data=
     callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
