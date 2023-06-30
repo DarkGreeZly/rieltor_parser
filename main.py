@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.sql.expression import exists
 from aiogram.utils.callback_data import CallbackData
 import base64
+import ast
 from aiogram.utils import markdown
 
 from shapely.geometry import Point
@@ -189,7 +190,17 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
 @dp.message_handler(commands='search')
 @dp.callback_query_handler(text='search')
 async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand = None):
-    print(callback_query.from_user.id)
+    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
+    selection_result = connection.execute(selection_query)
+    favorites = 0
+    count_complaints = 0
+    for user in selection_result.fetchall():
+        print(user[3])
+        if user[3]:
+            favorites += 1
+        if user[4]:
+            count_complaints += 1
     search_by_params = KeyboardButton(text="Пошук за параметрами",
                                       web_app=WebAppInfo(
                                           url=f"https://testwebform142125.000webhostapp.com/FormFirst/idUser/{callback_query.from_user.id}"))
@@ -1002,7 +1013,7 @@ async def web_app(message: types.Message, callback_data=None):
                                             details = InlineKeyboardButton(text="Детальніше",
                                                                            callback_data=cb_inline.new(action="details",
                                                                                                        data=row[-3]))
-                                            # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
                                             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                                             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
                                             share = InlineKeyboardButton(text="Розповісти про бот",
@@ -1014,7 +1025,7 @@ async def web_app(message: types.Message, callback_data=None):
                                             more = InlineKeyboardButton(text="Показати ще",
                                                                         callback_data=cb_inline.new(action="more",
                                                                                                     data='for_ann'))
-                                            mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change,
+                                            mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change,
                                                                                         stop,
                                                                                         share,
                                                                                         more)
@@ -1183,7 +1194,7 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
     print(new_building)
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
                                        callback_data=cb_inline.new(action="res_complex", data=new_building))
-    complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints")
+    complaints = InlineKeyboardButton(text="Скарги", callback_data=cb_inline.new(action="complaints_show", data=callback_data['data']))
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back_text_ann",
                                                                            data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
@@ -1309,7 +1320,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
             details = InlineKeyboardButton(text="Детальніше",
                                            callback_data=cb_inline.new(action="details",
                                                                        data=row[-3]))
-            # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
             share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1320,7 +1331,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
             more = InlineKeyboardButton(text="Показати ще",
                                         callback_data=cb_inline.new(action="more",
                                                                     data='for_ann'))
-            mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
+            mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                         share,
                                                         more)
             await bot.edit_message_text(chat_id=callback_query.from_user.id,
@@ -1338,7 +1349,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
         details = InlineKeyboardButton(text="Детальніше",
                                        callback_data=cb_inline.new(action="details",
                                                                    data=row[-3]))
-        # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1349,7 +1360,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
         more = InlineKeyboardButton(text="Показати ще",
                                     callback_data=cb_inline.new(action="more",
                                                                 data='for_ann'))
-        mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
+        mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                     share,
                                                     more)
         await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
@@ -1429,7 +1440,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                             details = InlineKeyboardButton(text="Детальніше",
                                                            callback_data=cb_inline.new(action="details_in_fav",
                                                                                        data=new_building))
-                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
                             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                              callback_data=cb_inline.new(action="phone_num_fav",
                                                                                      data=row[-3]))
@@ -1608,7 +1619,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
             details = InlineKeyboardButton(text="Детальніше",
                                            callback_data=cb_inline.new(action="details",
                                                                        data=row[-3]))
-            # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
             share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1619,7 +1630,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
             more = InlineKeyboardButton(text="Показати ще",
                                         callback_data=cb_inline.new(action="more",
                                                                     data='for_ann'))
-            mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
+            mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                         share,
                                                         more)
             await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
@@ -1635,7 +1646,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
         details = InlineKeyboardButton(text="Детальніше",
                                        callback_data=cb_inline.new(action="details",
                                                                    data=row[-3]))
-        # error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
@@ -1646,7 +1657,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
         more = InlineKeyboardButton(text="Показати ще",
                                     callback_data=cb_inline.new(action="more",
                                                                 data='for_ann'))
-        mar = InlineKeyboardMarkup(row_width=2).add(details, phone_num, change, stop,
+        mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                     share,
                                                     more)
         await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
@@ -1681,7 +1692,7 @@ async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
     callback_data['data']))
     res_complex = InlineKeyboardButton(text="Квартири в цьому ЖК",
                                        callback_data=cb_inline.new(action="res_complex", data=new_building))
-    complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
+    complaints = InlineKeyboardButton(text="Скарги", callback_data=cb_inline.new(action="complaints_show", data=callback_data['data']))
     back = InlineKeyboardButton(text="Назад🔙", callback_data=cb_inline.new(action="back_text_ann", data=
     callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
@@ -1699,13 +1710,14 @@ async def show_complaints(callback_query: types.CallbackQuery, callback_data):
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
     selection_res = connection.execute(selection_query)
+    user = ()
     for control_element in selection_res.fetchall():
         if control_element[2]:
             user = control_element
     for row in rows:
         if row[3]:
             await bot.send_message(callback_query.from_user.id, f"{callback_data['data']}\n"
-                                                                f"{row[4]}\n"
+                                                                f"{row[5]}\n"
                                                                 f"від {callback_query.from_user.full_name} {user[2]}")
 
 
@@ -1743,16 +1755,18 @@ async def complaints_view(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action='complaint'))
 async def send_complaint(callback_query: types.CallbackQuery, callback_data):
-    announcement_id = callback_data['data'][0]
-    complaint = callback_data['data'][1]
+    serialized_data = ast.literal_eval(callback_data['data'])
+    announcement_id = serialized_data[0]
+    complaint = serialized_data[1]
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     insertion_query = control_table.insert().values(user_id=callback_query.from_user.id,
                                                     complaint=complaint,
-                                                    announcement_id=announcement_id)
+                                                    announcement_id=announcement_id,
+                                                    phone_number=phone_number)
     connection.execute(insertion_query)
     connection.commit()
     await bot.send_message(callback_query.from_user.id,
-                           text=f"Оголошення {announcement_id}, скарга {' '.join(complaint)} успішно відправлена!")
+                           text=f"Оголошення {announcement_id}, скарга {complaint} успішно відправлена!")
 
 
 @dp.callback_query_handler(cb_inline.filter(action='res_complex'))
@@ -1778,7 +1792,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                 phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                  callback_data=cb_inline.new(action="phone_num_complex",
                                                                              data=row[-3]))
-                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data="error")
+                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
                 mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
                 for image in images:
                     if count < len(images) and count < 9:
@@ -1906,7 +1920,7 @@ async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
 async def details_in_complex(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране", callback_data=cb_inline.new(action="add_fav", data=
     callback_data['data']))
-    complaints = InlineKeyboardButton(text="Скарги", callback_data="complaints_show")
+    complaints = InlineKeyboardButton(text="Скарги", callback_data=cb_inline.new(action="complaints_show", data=callback_data['data']))
     back = InlineKeyboardButton(text="Назад🔙",
                                 callback_data=cb_inline.new(action="back_text_ann", data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, complaints, back)
