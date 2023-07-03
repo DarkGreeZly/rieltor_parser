@@ -13,7 +13,7 @@ import zlib
 import base64
 import json
 from sqlalchemy import select
-from rieltor_parser.bot_folder.config import metadata, engine, connection
+from bot_folder.config import metadata, engine, connection
 
 MAIN_URL = 'https://rieltor.ua'
 urls_parameters = ['flats-sale/',
