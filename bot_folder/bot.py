@@ -23,6 +23,7 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=['start'])
 async def command_start(message: types.Message):
+    connection.rollback()
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
     selection_query = exists(selection_query).select()
