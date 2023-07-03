@@ -6,7 +6,7 @@ from aiogram.utils.callback_data import CallbackData
 TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 
 engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
-cred = credentials.Certificate("aleksandr-c0286-firebase-adminsdk-4k3sz-ebc5beaae1.json")
+cred = credentials.Certificate("bot_folder/aleksandr-c0286-firebase-adminsdk-4k3sz-ebc5beaae1.json")
 connection = engine.connect()
 metadata = db.MetaData()
 current_row = ()
