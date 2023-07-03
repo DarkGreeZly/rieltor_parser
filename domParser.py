@@ -15,6 +15,7 @@ import json
 from sqlalchemy import select
 from bot_folder.config import metadata, engine, connection
 
+
 MAIN_URL = 'https://rieltor.ua'
 urls_parameters = ['flats-sale/',
                    'flats-sale/newhouse/',
