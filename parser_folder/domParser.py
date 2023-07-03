@@ -13,6 +13,7 @@ import zlib
 import base64
 import json
 from sqlalchemy import select
+from ..bot_folder.config import metadata, engine, connection
 
 MAIN_URL = 'https://rieltor.ua'
 urls_parameters = ['flats-sale/',
@@ -25,8 +26,8 @@ urls_parameters = ['flats-sale/',
                    'commercials-sale/',
                    'commercials-rent/']
 
-metadata = db.MetaData()
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+# metadata = db.MetaData()
+# engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
 
 
 def create_base(engine):
@@ -356,7 +357,7 @@ async def start_parser():
     obls = await get_obls(cities)
     global rieltor_data
     rieltor_data = create_base(engine)
-    connection = engine.connect()
+    # connection = engine.connect()
     delete_query = db.delete(rieltor_data)
     connection.execute(delete_query)
     connection.commit()
