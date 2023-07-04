@@ -2,7 +2,7 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.callback_data import CallbackData
 import sqlalchemy as db
-from sqlalchemy import select
+from sqlalchemy import select, column
 from sqlalchemy.sql.expression import exists
 import asyncio
 import aiohttp
@@ -12,7 +12,7 @@ import ast
 import base64
 import phonenumbers
 from config import metadata, engine, connection, TOKEN, cb_inline, cred, count_of_coins, count_complaints, \
-                    current_time, current_row, current_num_row, not_checked, temp, media_id, favorites, rows, start_message1, start_message2
+                    current_time, current_row, current_num_row, not_checked, temp, media_id, favorites, rows, start_message1, start_message2, phone_number
 from settings import on_snapshot, check_id_form2, check_id_form1, check_data_from_user, filters, open_rieltor_data, create_db_control
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -96,7 +96,11 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     for user in selection_result.fetchall():
         print(user[3])
         if user[3]:
-            favorites += 1
+            rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+            rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
+            rieltor_result = connection.execute(rieltor_query)
+            if rieltor_result.fetchone()[-3]:
+                favorites += 1
         if user[4]:
             count_complaints += 1
         count_of_coins += user[-1]
@@ -134,7 +138,11 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
     for user in selection_result.fetchall():
         print(user[3])
         if user[3]:
-            favorites += 1
+            rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+            rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
+            rieltor_result = connection.execute(rieltor_query)
+            if rieltor_result.fetchone()[-3]:
+                favorites += 1
         if user[4]:
             count_complaints += 1
     search_by_params = KeyboardButton(text="Пошук за параметрами",
@@ -179,7 +187,7 @@ async def my_messages(callback_query: types.CallbackQuery, command: types.BotCom
         if row[4] and row != last_row:
             await bot.send_message(callback_query.from_user.id, f"{row[5]}\n"
                                                                 f"{row[4]}\n"
-                                                                f"від {callback_query.from_user.full_name} {row[2]}")
+                                                                f"від {callback_query.from_user.full_name} {row[2] if row[2] else ''}")
             count_complaints += 1
         elif row == last_row and count_complaints == 0:
             await bot.send_message(callback_query.from_user.id, "Скарги відсутні")
@@ -449,6 +457,8 @@ async def web_app(message: types.Message, callback_data=None):
         last_row = rows[-1]
 
         for check_row in rows:
+            if current_row == ():
+                current_row = check_row
             if check_row == current_row:
                 for row_num in range(0, len(rows)):
                     if current_num_row == row_num:
@@ -892,13 +902,15 @@ async def show_favorite(callback_query: types.CallbackQuery):
                 rows = rieltor_selection_result.fetchall()
                 row = ()
                 for element in rows:
+                    print(element[-3] + "first one")
+                    print(control_element[3] + "another one")
                     if element[-3] == control_element[3]:
                         row = element
                         break
                     else:
                         row = False
                 if row == False:
-                    break
+                    continue
                 images = base64.b64decode(row[-6].encode())
                 images = zlib.decompress(images).decode()
                 images = json.loads(images)
@@ -1177,9 +1189,13 @@ async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
 @dp.callback_query_handler(cb_inline.filter(action="complaints_show"))
 async def show_complaints(callback_query: types.CallbackQuery, callback_data):
     control_table = db.Table("control_data", metadata, autoload_with=engine)
-    selection_query = select(control_table).where(str(control_table.c.announcement_id) == str(callback_data['data']))
+    selection_query = select(control_table)
     selection_result = connection.execute(selection_query)
-    rows = selection_result.fetchall()
+    rows_list = selection_result.fetchall()
+    rows = []
+    for row_list in rows_list:
+        if row_list[-4] and str(row_list[-4]) == str(callback_data['data']):
+            rows.append(row_list)
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
@@ -1189,10 +1205,10 @@ async def show_complaints(callback_query: types.CallbackQuery, callback_data):
         if control_element[2]:
             user = control_element
     for row in rows:
-        if row[3]:
+        if row[4]:
             await bot.send_message(callback_query.from_user.id, f"{callback_data['data']}\n"
-                                                                f"{row[5]}\n"
-                                                                f"від {callback_query.from_user.full_name} {user[2]}")
+                                                                f"{row[4]}\n"
+                                                                f"від {callback_query.from_user.full_name} {user[2] if user != () else ''}")
 
 
 @dp.callback_query_handler(cb_inline.filter(action="del_fav"))
@@ -1234,9 +1250,9 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
     complaint = serialized_data[1]
     control_table = db.Table('control_data', metadata, autoload_with=engine)
     insertion_query = control_table.insert().values(user_id=callback_query.from_user.id,
+                                                    phone_number=phone_number,
                                                     complaint=complaint,
-                                                    announcement_id=announcement_id,
-                                                    phone_number=phone_number)
+                                                    announcement_id=announcement_id)
     connection.execute(insertion_query)
     connection.commit()
     await bot.send_message(callback_query.from_user.id,

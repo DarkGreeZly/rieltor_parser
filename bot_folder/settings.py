@@ -1,5 +1,5 @@
 import sqlalchemy as db
-from config import metadata, engine, connection, phone_number
+from config import metadata, engine, connection, phone_number, current_row, current_time
 import aiohttp
 from firebase_admin import credentials, firestore
 import uuid
