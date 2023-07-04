@@ -99,7 +99,8 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
             rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
             rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
             rieltor_result = connection.execute(rieltor_query)
-            if rieltor_result.fetchone()[-3]:
+            res = rieltor_result.fetchone()
+            if res and res[-3]:
                 favorites += 1
         if user[4]:
             count_complaints += 1
