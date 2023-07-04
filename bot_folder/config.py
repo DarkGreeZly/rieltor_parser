@@ -4,7 +4,7 @@ from aiogram.utils.callback_data import CallbackData
 
 TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = db.create_engine("mysql+pymysql://yarikOdmen:developer70@localhost:3306/eBazaDB")
 try:
     cred = credentials.Certificate("aleksandr-c0286-firebase-adminsdk-4k3sz-ebc5beaae1.json")
 except Exception:

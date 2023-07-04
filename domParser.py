@@ -32,26 +32,29 @@ urls_parameters = ['flats-sale/',
 
 
 def create_base(engine):
-    rieltor_data = db.Table("rieltor_data", metadata,
-                            db.Column("id", db.Integer, primary_key=True, autoincrement=True),
-                            db.Column("city", db.String(250)),
-                            db.Column("city_name", db.String(250)),
-                            db.Column("region", db.String(250)),
-                            db.Column("street", db.String(250)),
-                            db.Column("price", db.String(250)),
-                            db.Column("rooms", db.String(250)),
-                            db.Column("floors", db.String(250)),
-                            db.Column("meters", db.String(250)),
-                            db.Column("land_area", db.String(250)),
-                            db.Column("markers", db.String(1000)),
-                            db.Column("agency", db.String(250)),
-                            db.Column("image", db.String(5000)),
-                            db.Column("longitude", db.String(250)),
-                            db.Column("latitude", db.String(250)),
-                            db.Column("rieltor_id", db.String(250), unique=True),
-                            db.Column("option", db.String(250)),
-                            db.Column("phone_number", db.String(250)))
-    metadata.create_all(engine)
+    try:
+        rieltor_data = db.Table("rieltor_data", metadata,
+                                db.Column("id", db.Integer, primary_key=True, autoincrement=True),
+                                db.Column("city", db.String(250)),
+                                db.Column("city_name", db.String(250)),
+                                db.Column("region", db.String(250)),
+                                db.Column("street", db.String(250)),
+                                db.Column("price", db.String(250)),
+                                db.Column("rooms", db.String(250)),
+                                db.Column("floors", db.String(250)),
+                                db.Column("meters", db.String(250)),
+                                db.Column("land_area", db.String(250)),
+                                db.Column("markers", db.String(1000)),
+                                db.Column("agency", db.String(250)),
+                                db.Column("image", db.String(5000)),
+                                db.Column("longitude", db.String(250)),
+                                db.Column("latitude", db.String(250)),
+                                db.Column("rieltor_id", db.String(250), unique=True),
+                                db.Column("option", db.String(250)),
+                                db.Column("phone_number", db.String(250)))
+        metadata.create_all(engine)
+    except Exception:
+        rieltor_data = metadata.tables["rieltor_data"]
     return rieltor_data
 
 
