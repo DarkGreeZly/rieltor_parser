@@ -94,7 +94,6 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     favorites = 0
     count_complaints = 0
     for user in selection_result.fetchall():
-        print(user[3])
         if user[3]:
             rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
             rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
@@ -137,7 +136,6 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
     favorites = 0
     count_complaints = 0
     for user in selection_result.fetchall():
-        print(user[3])
         if user[3]:
             rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
             rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
@@ -294,13 +292,13 @@ async def sell_ann(callback_query: types.CallbackQuery, callback_data):
                     # await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                         f"📍Розташування: {doc['GEO']['currentCity']}\n"
-                                                                        f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                        f"Ⓜ {' '.join(doc['GEO']['metroStation']) if doc['GEO']['metroStation'] else ''}\n"
                                                                         f"📫{' '.join(doc['GEO']['streets'])}\n"
-                                                                        f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
-                                                                        f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                        f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
-                                                                        f"💰Ціна:{'-'.join(doc['input']['cost'])}$\n"
-                                                                        f"👥{doc['buttons']['role']}", reply_markup=mar)
+                                                                        f"🏢{'-'.join([str(i) for i in doc['input']['areaFloor']])} з {'-'.join([str(i) for i in doc['input']['areaFloorInHouse']])}\n"
+                                                                        f"📈Площа: {'-'.join([str(i) for i in doc['input']['areaTotal']])}\n"
+                                                                        f"🛏Кількість кімнат: {' '.join([str(i) for i in doc['buttons']['numbRooms']])}\n"
+                                                                        f"💰Ціна:{'-'.join([str(i) for i in doc['input']['cost']])} грн\n"
+                                                                        f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
                 elif doc['buttons']['section'] == ['Орендувати'] and callback_data['data'] == "rent_in":
                     # media = types.MediaGroup()
@@ -309,13 +307,13 @@ async def sell_ann(callback_query: types.CallbackQuery, callback_data):
                     # await bot.send_media_group(callback_query.from_user.id, media=media)
                     await bot.send_message(callback_query.from_user.id, f"📌ID:{doc['userID']}\n"
                                                                         f"📍Розташування: {doc['GEO']['currentCity']}\n"
-                                                                        f"Ⓜ {doc['GEO']['metroStation']}"
+                                                                        f"Ⓜ {' '.join(doc['GEO']['metroStation']) if doc['GEO']['metroStation'] else ''}\n"
                                                                         f"📫{' '.join(doc['GEO']['streets'])}\n"
-                                                                        f"🏢{'-'.join(doc['input']['areaFloor'])} з {'-'.join(doc['input']['areaFloorInHouse'])}\n"
-                                                                        f"📈Площа: {'-'.join(doc['input']['areaTotal'])}\n"
-                                                                        f"🛏Кількість кімнат: {' '.join(doc['buttons']['numbRooms'])}\n"
-                                                                        f"💰Ціна:{'-'.join(doc['input']['cost'])} грн\n"
-                                                                        f"👥{doc['buttons']['role']}", reply_markup=mar)
+                                                                        f"🏢{'-'.join([str(i) for i in doc['input']['areaFloor']])} з {'-'.join([str(i) for i in doc['input']['areaFloorInHouse']])}\n"
+                                                                        f"📈Площа: {'-'.join([str(i) for i in doc['input']['areaTotal']])}\n"
+                                                                        f"🛏Кількість кімнат: {' '.join([str(i) for i in doc['buttons']['numbRooms']])}\n"
+                                                                        f"💰Ціна:{'-'.join([str(i) for i in doc['input']['cost']])} грн\n"
+                                                                        f"👥{doc['buttons']['role'][0]}", reply_markup=mar)
 
 
 @dp.callback_query_handler(cb_inline.filter(action="actualize"))
@@ -904,8 +902,6 @@ async def show_favorite(callback_query: types.CallbackQuery):
                 rows = rieltor_selection_result.fetchall()
                 row = ()
                 for element in rows:
-                    print(element[-3] + "first one")
-                    print(control_element[3] + "another one")
                     if element[-3] == control_element[3]:
                         row = element
                         break
