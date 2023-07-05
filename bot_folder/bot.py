@@ -87,7 +87,7 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     # if callback_data:
     #     await bot.delete_message(callback_query.from_user.id, callback_query.message.message_id)
     global count_of_coins, favorites, count_complaints
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     search = InlineKeyboardButton(text="Пошук", callback_data="search")
@@ -95,7 +95,7 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     count_complaints = 0
     for user in selection_result.fetchall():
         if user[3]:
-            rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+            rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
             rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
             rieltor_result = connection.execute(rieltor_query)
             res = rieltor_result.fetchone()
@@ -130,14 +130,14 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
 @dp.message_handler(commands='search')
 @dp.callback_query_handler(text='search')
 async def search_menu(callback_query: types.CallbackQuery, command: types.BotCommand = None):
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     favorites = 0
     count_complaints = 0
     for user in selection_result.fetchall():
         if user[3]:
-            rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+            rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
             rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
             rieltor_result = connection.execute(rieltor_query)
             res = rieltor_result.fetchone()
@@ -177,7 +177,7 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
 @dp.message_handler(commands="my_messages")
 @dp.callback_query_handler(text='my_messages')
 async def my_messages(callback_query: types.CallbackQuery, command: types.BotCommand = None):
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     rows = selection_result.fetchall()
