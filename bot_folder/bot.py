@@ -24,7 +24,7 @@ dp = Dispatcher(bot)
 @dp.message_handler(commands=['start'])
 async def command_start(message: types.Message):
     connection.rollback()
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
     selection_query = exists(selection_query).select()
     selection_result = connection.execute(selection_query)
@@ -404,7 +404,7 @@ async def without_coins(callback_query: types.CallbackQuery):
 async def wallet(callback_query: types.CallbackQuery, command: types.BotCommand = None):
     global count_of_coins
     count_of_coins = 0
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     for row in selection_result.fetchall():
@@ -447,7 +447,7 @@ async def web_app(message: types.Message, callback_data=None):
     if callback_data['data'] == 'for_ann' or str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
         global current_row, temp, not_checked, current_num_row, rows
-        rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+        rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
         select_query = db.select(rieltor_table)
         selection_result = connection.execute(select_query)
         doc = check_id_form1(message.from_user.id)
@@ -516,7 +516,7 @@ async def web_app(message: types.Message, callback_data=None):
                                             media.attach_photo(types.InputMediaPhoto(image))
                                         else:
                                             announcements = check_data_from_user(message.from_user.id)
-                                            control_table = db.Table('control_data', metadata, autoload_with=engine)
+                                            control_table = db.Table('control_data', metadata, autoload=True)
                                             selection_query = select(control_table).where(
                                                 control_table.c.user_id == message.from_user.id)
                                             selection_res = connection.execute(selection_query)
@@ -611,7 +611,7 @@ async def web_app(message: types.Message, callback_data=None):
         global count_of_coins
         count_of_coins -= 10
         print(count_of_coins)
-        control_table = db.Table("control_data", metadata, autoload_with=engine)
+        control_table = db.Table("control_data", metadata, autoload=True)
         update_query = db.update(control_table).where(
             control_table.c.user_id == message.from_user.id and control_table.c.coins >= 10).values(
             coins=control_table.c.coins - 10)
@@ -655,7 +655,7 @@ async def change_search(callback_query: types.CallbackQuery):
 async def details_view(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране",
                                callback_data=cb_inline.new(action="add_fav", data=callback_data['data']))
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
     rieltor_query = select(rieltor_table)
     rieltor_res = connection.execute(rieltor_query)
     rieltor_elements = rieltor_res.fetchall()
@@ -688,7 +688,7 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
 async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     rieltor_query = select(rieltor_table)
     rieltor_result = connection.execute(rieltor_query)
     rieltor_elements = rieltor_result.fetchall()
@@ -708,7 +708,7 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
             if str(announcement['annoncementID']) == str(callback_data['data']):
                 if announcement['GEO']['complex']:
                     new_building = announcement['GEO']['complex']
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
     selection_res = connection.execute(selection_query)
@@ -736,7 +736,7 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="back_text_ann"))
 async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
     rieltor_query = select(rieltor_table)
     rieltor_result = connection.execute(rieltor_query)
     rows = rieltor_result.fetchall()
@@ -750,7 +750,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
     if 'newhouse' in markers:
         new_building = markers['newhouse']
     announcements = check_id_form2(callback_query.from_user.id)
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     control_query = select(control_table).where(str(control_table.c.user_id) == str(callback_query.from_user.id))
     control_res = connection.execute(control_query)
     user = ()
@@ -862,7 +862,7 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
 @dp.message_handler(commands=['share_bot'])
 @dp.callback_query_handler(text="share")
 async def share(callback_query: types.CallbackQuery):
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.referral == callback_query.from_user.id)
     selection_result = connection.execute(selection_query)
     await bot.send_message(chat_id=callback_query.from_user.id, text=f"Це твоє реферальне посилання.\n"
@@ -872,7 +872,7 @@ async def share(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(cb_inline.filter(action="add_fav"))
 async def add_fav(callback_query: types.CallbackQuery, callback_data):
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     insertion_query = control_table.insert().values(user_id=callback_query.from_user.id, favorite=callback_data['data'])
     connection.execute(insertion_query)
     connection.commit()
@@ -885,8 +885,8 @@ async def add_fav(callback_query: types.CallbackQuery, callback_data):
 @dp.callback_query_handler(text='favorite')
 async def show_favorite(callback_query: types.CallbackQuery):
     global media_id
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
-    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
+    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     control_selection = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     control_selection_result = connection.execute(control_selection)
     control_elements = control_selection_result.fetchall()
@@ -933,7 +933,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
                             media.attach_photo(types.InputMediaPhoto(image))
                         elif count_of_anns < anns_count:
                             announcements = check_id_form2(callback_query.from_user.id)
-                            control_table = db.Table("control_data", metadata, autoload_with=engine)
+                            control_table = db.Table("control_data", metadata, autoload=True)
                             selection_query = select(control_table).where(
                                 control_table.c.user_id == callback_query.from_user.id)
                             selection_res = connection.execute(selection_query)
@@ -999,7 +999,7 @@ async def show_favorite(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_fav"))
 async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     rieltor_query = select(rieltor_table)
     rieltor_result = connection.execute(rieltor_query)
     rieltor_elements = rieltor_result.fetchall()
@@ -1019,7 +1019,7 @@ async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
             if str(announcement['annoncementID']) == str(callback_data['data']):
                 if announcement['GEO']['complex']:
                     new_building = announcement['GEO']['complex']
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
     selection_res = connection.execute(selection_query)
@@ -1047,7 +1047,7 @@ async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="back_text_fav"))
 async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
     rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == (callback_data['data']))
     rieltor_result = connection.execute(rieltor_query)
     row = rieltor_result.fetchone()
@@ -1056,7 +1056,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
     if 'newhouse' in markers:
         new_building = markers['newhouse']
     announcements = check_id_form2(callback_query.from_user.id)
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     control_query = select(control_table).where(str(control_table.c.user_id) == str(callback_query.from_user.id))
     control_res = connection.execute(control_query)
     user = ()
@@ -1157,7 +1157,7 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="details_in_fav"))
 async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
     rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == str(callback_data['data']))
     rieltor_result = connection.execute(rieltor_query)
     rieltor_element = rieltor_result.fetchone()
@@ -1186,7 +1186,7 @@ async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="complaints_show"))
 async def show_complaints(callback_query: types.CallbackQuery, callback_data):
-    control_table = db.Table("control_data", metadata, autoload_with=engine)
+    control_table = db.Table("control_data", metadata, autoload=True)
     selection_query = select(control_table)
     selection_result = connection.execute(selection_query)
     rows_list = selection_result.fetchall()
@@ -1194,7 +1194,7 @@ async def show_complaints(callback_query: types.CallbackQuery, callback_data):
     for row_list in rows_list:
         if row_list[-4] and str(row_list[-4]) == str(callback_data['data']):
             rows.append(row_list)
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
     selection_res = connection.execute(selection_query)
@@ -1213,7 +1213,7 @@ async def show_complaints(callback_query: types.CallbackQuery, callback_data):
 async def del_fav(callback_query: types.CallbackQuery, callback_data):
     for media_key in list(media_id.keys()):
         if media_key == callback_data['data']:
-            control_table = db.Table("control_data", metadata, autoload_with=engine)
+            control_table = db.Table("control_data", metadata, autoload=True)
             del_query = db.delete(control_table).where(control_table.c.favorite == media_key)
             connection.execute(del_query)
             connection.commit()
@@ -1246,7 +1246,7 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
     serialized_data = ast.literal_eval(callback_data['data'])
     announcement_id = serialized_data[0]
     complaint = serialized_data[1]
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     insertion_query = control_table.insert().values(user_id=callback_query.from_user.id,
                                                     phone_number=phone_number,
                                                     complaint=complaint,
@@ -1259,7 +1259,7 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action='res_complex'))
 async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     selection_query = select(rieltor_table)
     selection_result = connection.execute(selection_query)
     rows = selection_result.fetchall()
@@ -1288,7 +1288,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                             media.attach_photo(types.InputMediaPhoto(image))
                         else:
                             announcements = check_id_form2(callback_query.from_user.id)
-                            control_table = db.Table("control_data", metadata, autoload_with=engine)
+                            control_table = db.Table("control_data", metadata, autoload=True)
                             selection_query = select(control_table).where(
                                 control_table.c.user_id == callback_query.from_user.id)
                             selection_res = connection.execute(selection_query)
@@ -1358,7 +1358,7 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_complex"))
 async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload_with=engine)
+    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     rieltor_query = select(rieltor_table)
     rieltor_result = connection.execute(rieltor_query)
     rieltor_elements = rieltor_result.fetchall()
@@ -1378,7 +1378,7 @@ async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
             if str(announcement['annoncementID']) == str(callback_data['data']):
                 if announcement['GEO']['complex']:
                     new_building = announcement['GEO']['complex']
-    control_table = db.Table('control_data', metadata, autoload_with=engine)
+    control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(
         control_table.c.user_id == callback_query.from_user.id)
     selection_res = connection.execute(selection_query)
