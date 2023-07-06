@@ -23,7 +23,6 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=['start'])
 async def command_start(message: types.Message):
-    connection.rollback()
     control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
     selection_query = exists(selection_query).select()
@@ -629,9 +628,10 @@ async def web_app(message: types.Message, callback_data=None):
 
 @dp.callback_query_handler(text="stop")
 async def stop_search(callback_query: types.CallbackQuery):
-    global temp, current_row, not_checked
+    global temp, current_row, not_checked, current_num_row
     temp = 1
     current_row = ()
+    current_num_row = 0
     not_checked = 0
     agreement = InlineKeyboardButton("Зупинити", callback_data="search")
     mar = InlineKeyboardMarkup().add(agreement)
@@ -640,9 +640,10 @@ async def stop_search(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(text="change")
 async def change_search(callback_query: types.CallbackQuery):
-    global temp, current_row, not_checked
+    global temp, current_row, not_checked, current_num_row
     temp = 1
     current_row = ()
+    current_num_row = 0
     not_checked = 0
     agreement = KeyboardButton("", web_app=WebAppInfo(
         url=f"https://testwebform142125.000webhostapp.com/FormSecond/idUser/{callback_query.from_user.id}"))
