@@ -1,10 +1,11 @@
+import schedule
 import subprocess
-import datetime
-import time
 
+def restart_bot():
+    subprocess.call(["python", "bot.py"])
+
+# Schedule bot restart every day at 01:00
+schedule.every().day.at("01:00").do(restart_bot)
 
 while True:
-    now = datetime.datetime.now()
-    if now.hour == 1 and now.minute == 0:
-        subprocess.call(['python', 'bot.py'])
-        time.sleep((24 * 60 * 60) - 10)
+    schedule.run_pending()
