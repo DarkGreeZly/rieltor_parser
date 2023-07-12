@@ -6,6 +6,7 @@ from aiomysql.sa import create_engine
 TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 
 # engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+engine = None
 
 try:
     cred = credentials.Certificate("aleksandr-c0286-firebase-adminsdk-4k3sz-ebc5beaae1.json")
@@ -45,6 +46,7 @@ start_message2 = "❗️ Будь-ласка, дотримуйся правил!
 
 
 async def create_connection():
+    global engine
     engine = await create_engine(
         user="yarikOdmen",
         db="eBazaDB",

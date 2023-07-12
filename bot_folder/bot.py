@@ -1450,9 +1450,14 @@ async def details_in_complex(callback_query: types.CallbackQuery, callback_data)
                                 text="Детальніше", reply_markup=mar)
 
 
-if __name__ == "__main__":
-    connection = asyncio.run(create_connection())
+async def main():
+    global connection
+    connection = await create_connection()
     firebase_admin.initialize_app(cred)
-    asyncio.run(open_rieltor_data())
+    await open_rieltor_data()
     create_db_control()
     executor.start_polling(dp, skip_updates=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
