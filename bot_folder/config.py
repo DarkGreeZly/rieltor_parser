@@ -1,15 +1,17 @@
 from firebase_admin import credentials, firestore
 import sqlalchemy as db
 from aiogram.utils.callback_data import CallbackData
+from aiomysql.sa import create_engine
 
 TOKEN = "6247426236:AAEQKdagFgu6Xe8f9L_Yb_cPWmFvuP8DJsA"
 
-engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+# engine = db.create_engine("mysql+pymysql://devuser:r2d2c3po@localhost:3306/eBazaDB")
+
 try:
     cred = credentials.Certificate("aleksandr-c0286-firebase-adminsdk-4k3sz-ebc5beaae1.json")
 except Exception:
     pass
-connection = engine.connect()
+
 metadata = db.MetaData()
 current_row = ()
 current_num_row = 0
@@ -40,3 +42,15 @@ start_message2 = "❗️ Будь-ласка, дотримуйся правил!
                  "Якщо ти ріелтор — розміщуй лише ті оголошення, де в тебе є " + \
                  "договір з власником.\n" + \
                  "За порушення правил — можливий бан!"
+
+
+async def create_connection():
+    engine = await create_engine(
+        user="yarikOdmen",
+        db="eBazaDB",
+        host="localhost",
+        password="developer70"
+    )
+    async with engine.acquire() as conn:
+        connection = conn
+    return connection

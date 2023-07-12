@@ -1,5 +1,7 @@
+import asyncio
+
 import sqlalchemy as db
-from config import metadata, engine, connection, phone_number, current_row, current_time
+from config import metadata, create_connection, phone_number, current_row, current_time
 import aiohttp
 from firebase_admin import credentials, firestore
 import uuid
@@ -9,9 +11,17 @@ import re
 import numpy as np
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point
+from aiomysql.sa import create_engine
 
 
-def create_db_control():
+async def create_db_control():
+    global engine
+    engine = await create_engine(
+        user="yarikOdmen",
+        db="eBazaDB",
+        host="localhost",
+        password="developer70"
+    )
     user_data = db.Table("control_data", metadata,
                          db.Column("id", db.Integer, primary_key=True),
                          db.Column("user_id", db.String(250)),
@@ -273,7 +283,7 @@ def check_data_from_user(user_id):
 
 
 async def filters(doc, long, lat, floor, area, price, city_name, role, option, street, metro, room,
-            new_building, commission, land_area, landmark, city):
+                  new_building, commission, land_area, landmark, city):
     global current_time
     if current_time == '':
         current_time = dt.datetime.now() - dt.timedelta(seconds=30)
@@ -487,13 +497,16 @@ async def filters(doc, long, lat, floor, area, price, city_name, role, option, s
         return True
 
 
-def open_rieltor_data():
+async def open_rieltor_data():
     global current_row, temp
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
-    select_query = db.select(rieltor_table)
-    selection_result = connection.execute(select_query)
-    current_row = selection_result.fetchall()[0]
-    temp = 1
+    connection = asyncio.run(create_connection())
+
+    async with connection.begin():
+        rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+        select_query = db.select(rieltor_table)
+        selection_result = await connection.execute(select_query)
+        current_row = await selection_result.fetchall()[0]
+        temp = 1
 
 
 async def ConvertUSDToUAH(amount: int = 0) -> float:
