@@ -684,7 +684,7 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
                                                                            data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(fav, res_complex, complaints, back)
     await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                text="Детальніше", reply_markup=mar)
+                                text="Детальніше👇🏻", reply_markup=mar)
 
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
