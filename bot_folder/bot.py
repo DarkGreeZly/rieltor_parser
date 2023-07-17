@@ -645,7 +645,7 @@ async def change_search(callback_query: types.CallbackQuery):
     current_row = ()
     current_num_row = 0
     not_checked = 0
-    agreement = KeyboardButton("", web_app=WebAppInfo(
+    agreement = KeyboardButton("Змінити пошук", web_app=WebAppInfo(
         url=f"https://testwebform142125.000webhostapp.com/FormSecond/idUser/{callback_query.from_user.id}"))
     mar = ReplyKeyboardMarkup().add(agreement)
     await bot.send_message(callback_query.from_user.id, "Ви дійсно хочете змінити пошук?", reply_markup=mar)
@@ -1255,7 +1255,7 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
     connection.execute(insertion_query)
     connection.commit()
     await bot.send_message(callback_query.from_user.id,
-                           text=f"Оголошення {announcement_id}, скарга {complaint} успішно відправлена!")
+                           text=f"Оголошення {announcement_id}, скарга «{complaint}» успішно відправлена!")
 
 
 @dp.callback_query_handler(cb_inline.filter(action='res_complex'))

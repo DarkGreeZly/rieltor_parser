@@ -190,7 +190,7 @@ async def get_obls(cities):
     #             await connection.commit()
     # print(phone, price, info, markers, agency, street, region, lg, lt, city_name, id)
 
-async def template_cards(city, city_name, option, rieltor_data, connection):
+async def template_cards(city, city_name, option, rieltor_data, connection, page=""):
         async def get_prices(card):
             price = card.find('strong', class_='catalog-card-price-title')
             return price.text
@@ -281,7 +281,7 @@ async def template_cards(city, city_name, option, rieltor_data, connection):
         tracemalloc.start()
 
         async with aiohttp.ClientSession() as session:
-            url = MAIN_URL + city + option
+            url = MAIN_URL + city + option + page
             async with session.get(url) as response:
                 html = await response.text()
 
@@ -369,7 +369,8 @@ async def start_parser():
         print(city, cities[city])
         for option in urls_parameters:
                 # try:
-            await template_cards(city, cities[city], option, rieltor_data, connection)
+            for num in range(1, 6):
+                await template_cards(city, cities[city], option, rieltor_data, connection, page=f"/?page={num}")
                 # except Exception:
                 #     time.sleep(10)
                 #     pass
