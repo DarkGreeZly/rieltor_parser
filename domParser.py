@@ -374,14 +374,14 @@ async def start_parser():
                 # except Exception:
                 #     time.sleep(10)
                 #     pass
-    for obl in obls:
-        print(obls[obl])
-        for option in urls_parameters:
-            try:
-                await template_cards(obl, obls[obl], option, rieltor_data, connection)
-            except Exception:
-                await asyncio.sleep(10)
-                pass
+    # for obl in obls:
+    #     print(obls[obl])
+    #     for option in urls_parameters:
+    #         try:
+    #             await template_cards(obl, obls[obl], option, rieltor_data, connection)
+    #         except Exception:
+    #             await asyncio.sleep(10)
+    #             pass
     print("parsing completed")
 
 
@@ -391,6 +391,7 @@ if __name__ == "__main__":
     while True:
         now = datetime.datetime.now()
         if now.hour == 0 and now.minute == 0:
+            connection = engine.connect()
             asyncio.run(start_parser())
             connection.close()
             asyncio.sleep((24 * 60 * 60) - 10)
