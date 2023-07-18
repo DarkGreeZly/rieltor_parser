@@ -370,7 +370,7 @@ async def start_parser():
         for option in urls_parameters:
                 # try:
             for num in range(1, 6):
-                await template_cards(city, cities[city], option, rieltor_data, connection, page=f"/?page={num}")
+                await template_cards(city, cities[city], option, rieltor_data, connection, page=f"?page={num}")
                 # except Exception:
                 #     time.sleep(10)
                 #     pass
