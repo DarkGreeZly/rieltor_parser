@@ -374,14 +374,14 @@ async def start_parser():
                 # except Exception:
                 #     time.sleep(10)
                 #     pass
-    # for obl in obls:
-    #     print(obls[obl])
-    #     for option in urls_parameters:
-    #         try:
-    #             await template_cards(obl, obls[obl], option, rieltor_data, connection)
-    #         except Exception:
-    #             await asyncio.sleep(10)
-    #             pass
+    for obl in obls:
+        print(obls[obl])
+        for option in urls_parameters:
+            try:
+                await template_cards(obl, obls[obl], option, rieltor_data, connection)
+            except Exception:
+                await asyncio.sleep(10)
+                pass
     print("parsing completed")
 
 
