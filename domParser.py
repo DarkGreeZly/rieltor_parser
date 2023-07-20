@@ -394,4 +394,4 @@ if __name__ == "__main__":
             connection = engine.connect()
             asyncio.run(start_parser())
             connection.close()
-            asyncio.sleep((24 * 60 * 60) - 10)
+            await asyncio.sleep((24 * 60 * 60) - 10)
