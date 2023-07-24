@@ -17,7 +17,7 @@ from settings import on_snapshot, check_id_form2, check_id_form1, check_data_fro
 import firebase_admin
 from firebase_admin import firestore
 import datetime as dt
-from rieltor_parser.domParser import all_announcements
+from domParser import all_announcements
 from domParser import run_parser
 
 
