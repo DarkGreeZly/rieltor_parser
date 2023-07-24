@@ -1,11 +1,7 @@
-import asyncio
-import aiohttp
-import datetime
-import time
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import sqlalchemy as db
-from sqlalchemy.orm import sessionmaker
 import aiohttp
 import asyncio
 import tracemalloc
@@ -13,8 +9,9 @@ import zlib
 import base64
 import json
 from sqlalchemy import select
-from bot_folder.config import metadata, engine, connection
+from config import metadata, engine, connection
 
+all_announcements = []
 
 MAIN_URL = 'https://rieltor.ua'
 urls_parameters = ['flats-sale/',
@@ -359,7 +356,7 @@ async def get_page_count(city):
 async def start_parser():
     cities = await get_cities()
     obls = await get_obls(cities)
-    global rieltor_data
+    global rieltor_data, all_announcements
     rieltor_data = create_base(engine)
     # connection = engine.connect()
     delete_query = db.delete(rieltor_data)
@@ -368,12 +365,12 @@ async def start_parser():
     for city in cities:
         print(city, cities[city])
         for option in urls_parameters:
-                # try:
-            for num in range(1, 6):
-                await template_cards(city, cities[city], option, rieltor_data, connection, page=f"?page={num}")
-                # except Exception:
-                #     time.sleep(10)
-                #     pass
+            try:
+                for num in range(1, 6):
+                    await template_cards(city, cities[city], option, rieltor_data, connection, page=f"?page={num}")
+            except Exception:
+                await asyncio.sleep(5)
+                pass
     for obl in obls:
         print(obls[obl])
         for option in urls_parameters:
@@ -383,15 +380,29 @@ async def start_parser():
                 await asyncio.sleep(10)
                 pass
     print("parsing completed")
+    all_announcements = pd.read_sql('SELECT * FROM rieltor_data', con=engine)
 
 
-if __name__ == "__main__":
+def run_parser(event):
+    connection = engine.connect()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     asyncio.run(start_parser())
+    all_announcements = pd.read_sql('SELECT * FROM rieltor_data', con=engine)
     connection.close()
-    while True:
-        now = datetime.datetime.now()
-        if now.hour == 0 and now.minute == 0:
-            connection = engine.connect()
-            asyncio.run(start_parser())
-            connection.close()
-            time.sleep((24 * 60 * 60) - 10)
+    event.all_announcements = all_announcements
+    event.set()
+# if __name__ == "__main__":
+#     asyncio.run(start_parser())
+#     connection.close()
+#     while True:
+#         # now = datetime.datetime.now()
+#         # if now.hour == 0 and now.minute == 0:
+#         #     connection = engine.connect()
+#         #     asyncio.run(start_parser())
+#         #     connection.close()
+#         #     time.sleep((24 * 60 * 60) - 10)
+#         connection = engine.connect()
+#         asyncio.run(start_parser())
+#         connection.close()
+

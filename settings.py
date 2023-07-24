@@ -487,15 +487,6 @@ async def filters(doc, long, lat, floor, area, price, city_name, role, option, s
         return True
 
 
-def open_rieltor_data():
-    global current_row, temp
-    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
-    select_query = db.select(rieltor_table)
-    selection_result = connection.execute(select_query)
-    current_row = selection_result.fetchall()[0]
-    temp = 1
-
-
 async def ConvertUSDToUAH(amount: int = 0) -> float:
     try:
         async with aiohttp.ClientSession() as session:

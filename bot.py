@@ -1,28 +1,34 @@
+import time
+
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from aiogram.utils.callback_data import CallbackData
 import sqlalchemy as db
-from sqlalchemy import select, column
+from sqlalchemy import select
 from sqlalchemy.sql.expression import exists
 import asyncio
-import aiohttp
 import json
 import zlib
 import ast
 import base64
+import threading
 import phonenumbers
-from config import metadata, engine, connection, TOKEN, cb_inline, cred, count_of_coins, count_complaints, \
-                    current_time, current_row, current_num_row, not_checked, temp, media_id, favorites, rows, start_message1, start_message2, phone_number
-from settings import on_snapshot, check_id_form2, check_id_form1, check_data_from_user, filters, open_rieltor_data, create_db_control
+from config import metadata, connection, TOKEN, cb_inline, cred, start_message1, start_message2, engine
+from settings import on_snapshot, check_id_form2, check_id_form1, check_data_from_user, filters, create_db_control
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import firestore
 import datetime as dt
+from rieltor_parser.domParser import all_announcements
+from domParser import run_parser
+
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
+all_announcements = []
+
 
 @dp.message_handler(commands=['start'])
 async def command_start(message: types.Message):
+    print(all_announcements)
     control_table = db.Table('control_data', metadata, autoload=True)
     selection_query = select(control_table).where(control_table.c.user_id == message.from_user.id)
     selection_query = exists(selection_query).select()
@@ -94,11 +100,11 @@ async def start(callback_query: types.CallbackQuery, command: types.BotCommand =
     count_complaints = 0
     for user in selection_result.fetchall():
         if user[3]:
-            rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-            rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
-            rieltor_result = connection.execute(rieltor_query)
-            res = rieltor_result.fetchone()
-            if res and res[-3]:
+            accepted_announcements = []
+            for announcement in all_announcements.iloc:
+                if announcement['rieltor_id'] == user[3]:
+                    accepted_announcements.append(announcement)
+            if accepted_announcements and accepted_announcements['rieltor_id']:
                 favorites += 1
         if user[4]:
             count_complaints += 1
@@ -136,11 +142,11 @@ async def search_menu(callback_query: types.CallbackQuery, command: types.BotCom
     count_complaints = 0
     for user in selection_result.fetchall():
         if user[3]:
-            rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-            rieltor_query = select(rieltor_table).where(rieltor_table.c.rieltor_id == user[3])
-            rieltor_result = connection.execute(rieltor_query)
-            res = rieltor_result.fetchone()
-            if res and res[-3]:
+            accepted_announcements = []
+            for announcement in all_announcements.iloc:
+                if announcement['rieltor_id'] == user[3]:
+                    accepted_announcements.append(announcement)
+            if accepted_announcements and accepted_announcements['rieltor_id']:
                 favorites += 1
         if user[4]:
             count_complaints += 1
@@ -441,13 +447,10 @@ async def web_app_handler(message: types.Message):
     if str(message.web_app_data.data) == 'completed':
         # add_new_user('first', message.from_user.id)
         global current_row, temp, not_checked, current_num_row, rows
-        rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-        select_query = db.select(rieltor_table)
-        selection_result = connection.execute(select_query)
         doc = check_id_form1(message.from_user.id)
 
         breaking = False
-        rows = selection_result.fetchall()
+        rows = all_announcements.iloc
         last_row = rows[-1]
 
         for check_row in rows:
@@ -461,12 +464,12 @@ async def web_app_handler(message: types.Message):
                         not_checked = len(rows) - temp
                         current_row = row
 
-                        images = base64.b64decode(row[-6].encode())
+                        images = base64.b64decode(row['image'].encode())
                         images = zlib.decompress(images).decode()
                         images = json.loads(images)
                         media = types.MediaGroup()
                         count = 0
-                        markers = json.loads(row[-8])
+                        markers = json.loads(row['markers'])
                         metro = ''
                         new_building = ''
                         landmark = ''
@@ -479,19 +482,19 @@ async def web_app_handler(message: types.Message):
                             landmark = markers['landmark']
                         if 'commission' in markers:
                             commission = markers['commission']
-                        if await filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
-                                   area=row[8], price=row[5], city_name=row[2], role=row[-7],
-                                   option=row[-2], street=row[4], metro=metro, room=row[6],
-                                   new_building=new_building, commission=commission, land_area=row[9],
-                                   landmark=landmark, city=row[2]):
+                        if await filters(doc=doc, long=row['longitude'], lat=row['latitude'], floor=row['floors'],
+                                   area=row['meters'], price=row['price'], city_name=row['city_name'], role=row['agency'],
+                                   option=row['option'], street=row['streets'], metro=metro, room=row['rooms'],
+                                   new_building=new_building, commission=commission, land_area=row['land_area'],
+                                   landmark=landmark, city=row['city']):
                             if temp % 6 != 0:
                                 for image in images:
                                     if count < len(images) and count < 10:
                                         if current_row != last_row:
                                             details = InlineKeyboardButton(text="Детальніше",
                                                                            callback_data=cb_inline.new(action="details",
-                                                                                                       data=row[-3]))
-                                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                                                       data=row['rieltor_id']))
+                                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
                                             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                                             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
                                             share = InlineKeyboardButton(text="Розповісти про бот",
@@ -499,7 +502,7 @@ async def web_app_handler(message: types.Message):
                                             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                                              callback_data=cb_inline.new(
                                                                                  action="phone_num_web",
-                                                                                 data=row[-3]))
+                                                                                 data=row['rieltor_id']))
                                             more = InlineKeyboardButton(text="Показати ще",
                                                                         callback_data=cb_inline.new(action="more",
                                                                                                     data='for_ann'))
@@ -577,15 +580,15 @@ async def web_app_handler(message: types.Message):
                                         if current_row != last_row:
                                             temp += 1
                                             await bot.send_media_group(message.from_user.id, media=media)
-                                            await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                                         f"📍Розташування: {row[3]}\n"
+                                            await bot.send_message(message.from_user.id, f"📌ID:{row['rieltor_id']}\n"
+                                                                                         f"📍Розташування: {row['region']}\n"
                                                                                          f"🏢{new_building}\n"
-                                                                                         f"📫{row[4]}\n"
-                                                                                         f"🏢{row[7]}\n"
-                                                                                         f"📈Площа: {row[8]}\n"
-                                                                                         f"🛏{row[6]}\n"
-                                                                                         f"💰Ціна:{row[5]}\n"
-                                                                                         f"👥{row[-7]}",
+                                                                                         f"📫{row['street']}\n"
+                                                                                         f"🏢{row['floors']}\n"
+                                                                                         f"📈Площа: {row['meters']}\n"
+                                                                                         f"🛏{row['rooms']}\n"
+                                                                                         f"💰Ціна:{row['price']}\n"
+                                                                                         f"👥{row['agency']}",
                                                                    reply_markup=mar)
                                         else:
                                             break
@@ -629,13 +632,10 @@ async def web_app(message: types.Message, callback_data=None):
     if callback_data['data'] == 'for_ann':
         # add_new_user('first', message.from_user.id)
         global current_row, temp, not_checked, current_num_row, rows
-        rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-        select_query = db.select(rieltor_table)
-        selection_result = connection.execute(select_query)
         doc = check_id_form1(message.from_user.id)
 
         breaking = False
-        rows = selection_result.fetchall()
+        rows = all_announcements.iloc
         last_row = rows[-1]
 
         for check_row in rows:
@@ -649,12 +649,12 @@ async def web_app(message: types.Message, callback_data=None):
                         not_checked = len(rows) - temp
                         current_row = row
 
-                        images = base64.b64decode(row[-6].encode())
+                        images = base64.b64decode(row['image'].encode())
                         images = zlib.decompress(images).decode()
                         images = json.loads(images)
                         media = types.MediaGroup()
                         count = 0
-                        markers = json.loads(row[-8])
+                        markers = json.loads(row['markers'])
                         metro = ''
                         new_building = ''
                         landmark = ''
@@ -667,19 +667,24 @@ async def web_app(message: types.Message, callback_data=None):
                             landmark = markers['landmark']
                         if 'commission' in markers:
                             commission = markers['commission']
-                        if await filters(doc=doc, long=row[-5], lat=row[-4], floor=row[7],
-                                   area=row[8], price=row[5], city_name=row[2], role=row[-7],
-                                   option=row[-2], street=row[4], metro=metro, room=row[6],
-                                   new_building=new_building, commission=commission, land_area=row[9],
-                                   landmark=landmark, city=row[2]):
+                        if await filters(doc=doc, long=row['longitude'], lat=row['latitude'], floor=row['floors'],
+                                         area=row['meters'], price=row['price'], city_name=row['city_name'],
+                                         role=row['agency'],
+                                         option=row['option'], street=row['streets'], metro=metro, room=row['rooms'],
+                                         new_building=new_building, commission=commission, land_area=row['land_area'],
+                                         landmark=landmark, city=row['city']):
                             if temp % 6 != 0:
                                 for image in images:
                                     if count < len(images) and count < 10:
                                         if current_row != last_row:
                                             details = InlineKeyboardButton(text="Детальніше",
                                                                            callback_data=cb_inline.new(action="details",
-                                                                                                       data=row[-3]))
-                                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                                                       data=row[
+                                                                                                           'rieltor_id']))
+                                            error = InlineKeyboardButton(text="Помилка/Поскаржитись",
+                                                                         callback_data=cb_inline.new(action="error",
+                                                                                                     data=row[
+                                                                                                         'rieltor_id']))
                                             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
                                             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
                                             share = InlineKeyboardButton(text="Розповісти про бот",
@@ -687,11 +692,12 @@ async def web_app(message: types.Message, callback_data=None):
                                             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                                              callback_data=cb_inline.new(
                                                                                  action="phone_num_web",
-                                                                                 data=row[-3]))
+                                                                                 data=row['rieltor_id']))
                                             more = InlineKeyboardButton(text="Показати ще",
                                                                         callback_data=cb_inline.new(action="more",
                                                                                                     data='for_ann'))
-                                            mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change,
+                                            mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num,
+                                                                                        change,
                                                                                         stop,
                                                                                         share,
                                                                                         more)
@@ -765,15 +771,15 @@ async def web_app(message: types.Message, callback_data=None):
                                         if current_row != last_row:
                                             temp += 1
                                             await bot.send_media_group(message.from_user.id, media=media)
-                                            await bot.send_message(message.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                                         f"📍Розташування: {row[3]}\n"
+                                            await bot.send_message(message.from_user.id, f"📌ID:{row['rieltor_id']}\n"
+                                                                                         f"📍Розташування: {row['region']}\n"
                                                                                          f"🏢{new_building}\n"
-                                                                                         f"📫{row[4]}\n"
-                                                                                         f"🏢{row[7]}\n"
-                                                                                         f"📈Площа: {row[8]}\n"
-                                                                                         f"🛏{row[6]}\n"
-                                                                                         f"💰Ціна:{row[5]}\n"
-                                                                                         f"👥{row[-7]}",
+                                                                                         f"📫{row['street']}\n"
+                                                                                         f"🏢{row['floors']}\n"
+                                                                                         f"📈Площа: {row['meters']}\n"
+                                                                                         f"🛏{row['rooms']}\n"
+                                                                                         f"💰Ціна:{row['price']}\n"
+                                                                                         f"👥{row['agency']}",
                                                                    reply_markup=mar)
                                         else:
                                             break
@@ -818,19 +824,16 @@ async def change_search(callback_query: types.CallbackQuery):
 async def details_view(callback_query: types.CallbackQuery, callback_data):
     fav = InlineKeyboardButton(text="Додати в обране",
                                callback_data=cb_inline.new(action="add_fav", data=callback_data['data']))
-    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-    rieltor_query = select(rieltor_table)
-    rieltor_res = connection.execute(rieltor_query)
-    rieltor_elements = rieltor_res.fetchall()
-    rieltor_element = ()
+    rieltor_elements = all_announcements.iloc
+    rieltor_element = []
     for element in rieltor_elements:
-        if element[-3] == callback_data['data']:
+        if element['rieltor_id'] == callback_data['data']:
             rieltor_element = element
             break
     new_building = ''
     announcements = check_id_form2(callback_query.from_user.id)
     if rieltor_element:
-        markers = json.loads(rieltor_element[-8])
+        markers = json.loads(rieltor_element['markers'])
         if 'newhouse' in markers:
             new_building = markers['newhouse']
     else:
@@ -851,19 +854,16 @@ async def details_view(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_web"))
 async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
-    rieltor_query = select(rieltor_table)
-    rieltor_result = connection.execute(rieltor_query)
-    rieltor_elements = rieltor_result.fetchall()
+    rieltor_elements = all_announcements.iloc
     rieltor_element = ()
     for element in rieltor_elements:
-        if element[-3] == callback_data['data']:
+        if element['rieltor_id'] == callback_data['data']:
             rieltor_element = element
             break
     new_building = ''
     announcements = check_id_form2(callback_query.from_user.id)
     if rieltor_element:
-        markers = json.loads(rieltor_element[-8])
+        markers = json.loads(rieltor_element['markers'])
         if 'newhouse' in markers:
             new_building = markers['newhouse']
     else:
@@ -899,17 +899,14 @@ async def phone_num_web(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="back_text_ann"))
 async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-    rieltor_query = select(rieltor_table)
-    rieltor_result = connection.execute(rieltor_query)
-    rows = rieltor_result.fetchall()
+    rows = all_announcements.iloc
     row = ()
     for rieltor_row in rows:
-        if rieltor_row[-3] == callback_data['data']:
+        if rieltor_row['rieltor_id'] == callback_data['data']:
             row = rieltor_row
     new_building = ''
     print(row)
-    markers = json.loads(row[-8])
+    markers = json.loads(row['markers'])
     if 'newhouse' in markers:
         new_building = markers['newhouse']
     announcements = check_id_form2(callback_query.from_user.id)
@@ -966,15 +963,15 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
         else:
             details = InlineKeyboardButton(text="Детальніше",
                                            callback_data=cb_inline.new(action="details",
-                                                                       data=row[-3]))
-            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                       data=row['rieltor_id']))
+            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
             share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                              callback_data=cb_inline.new(
                                                  action="phone_num_web",
-                                                 data=row[-3]))
+                                                 data=row['rieltor_id']))
             more = InlineKeyboardButton(text="Показати ще",
                                         callback_data=cb_inline.new(action="more",
                                                                     data='for_ann'))
@@ -983,27 +980,27 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
                                                         more)
             await bot.edit_message_text(chat_id=callback_query.from_user.id,
                                         message_id=callback_query.message.message_id,
-                                        text=f"📌ID:{row[-3]}\n"
-                                             f"📍Розташування: {row[3]}\n"
+                                        text=f"📌ID:{row['rieltor_id']}\n"
+                                             f"📍Розташування: {row['region']}\n"
                                              f"🏢{new_building}\n"
-                                             f"📫{row[4]}\n"
-                                             f"🏢{row[7]}\n"
-                                             f"📈Площа: {row[8]}\n"
-                                             f"🛏{row[6]}\n"
-                                             f"💰Ціна:{row[5]}\n"
-                                             f"👥{row[-7]}", reply_markup=mar)
+                                             f"📫{row['street']}\n"
+                                             f"🏢{row['floors']}\n"
+                                             f"📈Площа: {row['meters']}\n"
+                                             f"🛏{row['rooms']}\n"
+                                             f"💰Ціна:{row['price']}\n"
+                                             f"👥{row['agency']}", reply_markup=mar)
     if announcements == []:
         details = InlineKeyboardButton(text="Детальніше",
                                        callback_data=cb_inline.new(action="details",
-                                                                   data=row[-3]))
-        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                   data=row['rieltor_id']))
+        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
         phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                          callback_data=cb_inline.new(
                                              action="phone_num_web",
-                                             data=row[-3]))
+                                             data=row['rieltor_id']))
         more = InlineKeyboardButton(text="Показати ще",
                                     callback_data=cb_inline.new(action="more",
                                                                 data='for_ann'))
@@ -1011,15 +1008,15 @@ async def return_ann_text(callback_query: types.CallbackQuery, callback_data):
                                                     share,
                                                     more)
         await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
-                                    text=f"📌ID:{row[-3]}\n"
-                                         f"📍Розташування: {row[3]}\n"
+                                    text=f"📌ID:{row['rieltor_id']}\n"
+                                         f"📍Розташування: {row['region']}\n"
                                          f"🏢{new_building}\n"
-                                         f"📫{row[4]}\n"
-                                         f"🏢{row[7]}\n"
-                                         f"📈Площа: {row[8]}\n"
-                                         f"🛏{row[6]}\n"
-                                         f"💰Ціна:{row[5]}\n"
-                                         f"👥{row[-7]}", reply_markup=mar)
+                                         f"📫{row['street']}\n"
+                                         f"🏢{row['floors']}\n"
+                                         f"📈Площа: {row['meters']}\n"
+                                         f"🛏{row['rooms']}\n"
+                                         f"💰Ціна:{row['price']}\n"
+                                         f"👥{row['agency']}", reply_markup=mar)
 
 
 @dp.message_handler(commands=['share_bot'])
@@ -1049,7 +1046,6 @@ async def add_fav(callback_query: types.CallbackQuery, callback_data):
 async def show_favorite(callback_query: types.CallbackQuery):
     global media_id
     control_table = db.Table('control_data', metadata, autoload=True)
-    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
     control_selection = select(control_table).where(control_table.c.user_id == callback_query.from_user.id)
     control_selection_result = connection.execute(control_selection)
     control_elements = control_selection_result.fetchall()
@@ -1060,24 +1056,22 @@ async def show_favorite(callback_query: types.CallbackQuery):
     if control_elements:
         for control_element in control_elements:
             if control_element[3]:
-                rieltor_selection = select(rieltor_table)
-                rieltor_selection_result = connection.execute(rieltor_selection)
-                rows = rieltor_selection_result.fetchall()
+                rows = all_announcements.iloc
                 row = ()
                 for element in rows:
-                    if element[-3] == control_element[3]:
+                    if element['rieltor_id'] == control_element[3]:
                         row = element
                         break
                     else:
                         row = False
                 if row == False:
                     continue
-                images = base64.b64decode(row[-6].encode())
+                images = base64.b64decode(row['image'].encode())
                 images = zlib.decompress(images).decode()
                 images = json.loads(images)
                 count = 0
                 media = types.MediaGroup()
-                markers = json.loads(row[-8])
+                markers = json.loads(row['markers'])
                 new_building = ''
                 if 'newhouse' in markers:
                     new_building = markers['newhouse']
@@ -1087,10 +1081,10 @@ async def show_favorite(callback_query: types.CallbackQuery):
                             details = InlineKeyboardButton(text="Детальніше",
                                                            callback_data=cb_inline.new(action="details_in_fav",
                                                                                        data=new_building))
-                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
                             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                              callback_data=cb_inline.new(action="phone_num_fav",
-                                                                                     data=row[-3]))
+                                                                                     data=row['rieltor_id']))
                             share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
                             mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
                             media.attach_photo(types.InputMediaPhoto(image))
@@ -1142,15 +1136,15 @@ async def show_favorite(callback_query: types.CallbackQuery):
                     elif count == 10:
                         if count_of_favs <= control_elements_count:
                             await bot.send_media_group(callback_query.from_user.id, media=media)
-                            await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                                f"📍Розташування: {row[1].upper()},"
-                                                                                f"🏢{new_building}\n"
-                                                                                f"📫 {row[2]}, {row[3]}\n"
-                                                                                f"🏢{row[4]}\n"
-                                                                                f"📈Площа: {row[5]}\n"
-                                                                                f"🛏{row[3]}\n"
-                                                                                f"💰Ціна:{row[2]}\n"
-                                                                                f"👥{row[7]}", reply_markup=mar)
+                            await bot.send_message(callback_query.from_user.id, text=f"📌ID:{row['rieltor_id']}\n"
+                                                                                     f"📍Розташування: {row['region']}\n"
+                                                                                     f"🏢{new_building}\n"
+                                                                                     f"📫{row['street']}\n"
+                                                                                     f"🏢{row['floors']}\n"
+                                                                                     f"📈Площа: {row['meters']}\n"
+                                                                                     f"🛏{row['rooms']}\n"
+                                                                                     f"💰Ціна:{row['price']}\n"
+                                                                                     f"👥{row['agency']}", reply_markup=mar)
                         else:
                             break
                     elif count > 10:
@@ -1162,19 +1156,16 @@ async def show_favorite(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_fav"))
 async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
-    rieltor_query = select(rieltor_table)
-    rieltor_result = connection.execute(rieltor_query)
-    rieltor_elements = rieltor_result.fetchall()
+    rieltor_elements = all_announcements.iloc
     rieltor_element = ()
     for element in rieltor_elements:
-        if element[-3] == callback_data['data']:
+        if element['rieltor_id'] == callback_data['data']:
             rieltor_element = element
             break
     new_building = ''
     announcements = check_id_form2(callback_query.from_user.id)
     if rieltor_element:
-        markers = json.loads(rieltor_element[-8])
+        markers = json.loads(rieltor_element['markers'])
         if 'newhouse' in markers:
             new_building = markers['newhouse']
     else:
@@ -1210,11 +1201,12 @@ async def phone_num_fav(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action="back_text_fav"))
 async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-    rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == (callback_data['data']))
-    rieltor_result = connection.execute(rieltor_query)
-    row = rieltor_result.fetchone()
-    markers = json.loads(row[-8])
+    rieltor_rows = []
+    for announcement in all_announcements.iloc:
+        if announcement['rieltor_id'] == callback_data:
+            rieltor_rows.append(announcement)
+    row = rieltor_rows[0]
+    markers = json.loads(row['markers'])
     new_building = ''
     if 'newhouse' in markers:
         new_building = markers['newhouse']
@@ -1265,69 +1257,70 @@ async def return_fav_text(callback_query: types.CallbackQuery, callback_data):
         else:
             details = InlineKeyboardButton(text="Детальніше",
                                            callback_data=cb_inline.new(action="details",
-                                                                       data=row[-3]))
-            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                       data=row['rieltor_id']))
+            error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['riletor_id']))
             change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
             stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
             share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
             phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                              callback_data=cb_inline.new(
                                                  action="phone_num_web",
-                                                 data=row[-3]))
+                                                 data=row['rieltor_id']))
             more = InlineKeyboardButton(text="Показати ще",
                                         callback_data=cb_inline.new(action="more",
                                                                     data='for_ann'))
             mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                         share,
                                                         more)
-            await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                f"📍Розташування: {row[3]}\n"
-                                                                f"🏢{new_building}\n"
-                                                                f"📫{row[4]}\n"
-                                                                f"🏢{row[7]}\n"
-                                                                f"📈Площа: {row[8]}\n"
-                                                                f"🛏{row[6]}\n"
-                                                                f"💰Ціна:{row[5]}\n"
-                                                                f"👥{row[-7]}", reply_markup=mar)
+            await bot.send_message(callback_query.from_user.id, text=f"📌ID:{row['rieltor_id']}\n"
+                                                                     f"📍Розташування: {row['region']}\n"
+                                                                     f"🏢{new_building}\n"
+                                                                     f"📫{row['street']}\n"
+                                                                     f"🏢{row['floors']}\n"
+                                                                     f"📈Площа: {row['meters']}\n"
+                                                                     f"🛏{row['rooms']}\n"
+                                                                     f"💰Ціна:{row['price']}\n"
+                                                                     f"👥{row['agency']}", reply_markup=mar)
     if announcements == []:
         details = InlineKeyboardButton(text="Детальніше",
                                        callback_data=cb_inline.new(action="details",
-                                                                   data=row[-3]))
-        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                   data=row['rieltor_id']))
+        error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
         change = InlineKeyboardButton(text="Змінити пошук", callback_data="change")
         stop = InlineKeyboardButton(text="Зупинити пошук", callback_data="stop")
         share = InlineKeyboardButton(text="Розповісти про бот", callback_data="share")
         phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                          callback_data=cb_inline.new(
                                              action="phone_num_web",
-                                             data=row[-3]))
+                                             data=row['rieltor_id']))
         more = InlineKeyboardButton(text="Показати ще",
                                     callback_data=cb_inline.new(action="more",
                                                                 data='for_ann'))
         mar = InlineKeyboardMarkup(row_width=2).add(details, error, phone_num, change, stop,
                                                     share,
                                                     more)
-        await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
-                                                            f"📍Розташування: {row[3]}\n"
-                                                            f"🏢{new_building}\n"
-                                                            f"📫{row[4]}\n"
-                                                            f"🏢{row[7]}\n"
-                                                            f"📈Площа: {row[8]}\n"
-                                                            f"🛏{row[6]}\n"
-                                                            f"💰Ціна:{row[5]}\n"
-                                                            f"👥{row[-7]}", reply_markup=mar)
+        await bot.send_message(callback_query.from_user.id, text=f"📌ID:{row['rieltor_id']}\n"
+                                                                 f"📍Розташування: {row['region']}\n"
+                                                                 f"🏢{new_building}\n"
+                                                                 f"📫{row['street']}\n"
+                                                                 f"🏢{row['floors']}\n"
+                                                                 f"📈Площа: {row['meters']}\n"
+                                                                 f"🛏{row['rooms']}\n"
+                                                                 f"💰Ціна:{row['price']}\n"
+                                                                 f"👥{row['agency']}", reply_markup=mar)
 
 
 @dp.callback_query_handler(cb_inline.filter(action="details_in_fav"))
 async def details_in_fav(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table("rieltor_data", metadata, autoload=True)
-    rieltor_query = select(rieltor_table).where(str(rieltor_table.c.rieltor_id) == str(callback_data['data']))
-    rieltor_result = connection.execute(rieltor_query)
-    rieltor_element = rieltor_result.fetchone()
+    rieltor_rows = []
+    for announcement in all_announcements.iloc:
+        if announcement['rieltor_id'] == callback_data:
+            rieltor_rows.append(announcement)
+    rieltor_element = rieltor_rows[0]
     new_building = ''
     announcements = check_id_form2(callback_query.from_user.id)
     if rieltor_element:
-        markers = json.loads(rieltor_element[-8])
+        markers = json.loads(rieltor_element['markers'])
         if 'newhouse' in markers:
             new_building = markers['newhouse']
     else:
@@ -1422,16 +1415,13 @@ async def send_complaint(callback_query: types.CallbackQuery, callback_data):
 
 @dp.callback_query_handler(cb_inline.filter(action='res_complex'))
 async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
-    selection_query = select(rieltor_table)
-    selection_result = connection.execute(selection_query)
-    rows = selection_result.fetchall()
+    rows = all_announcements.iloc
     last_row = rows[-1]
     for row in rows:
-        markers = json.loads(row[-8])
+        markers = json.loads(row['markers'])
         if 'newhouse' in markers:
             if callback_data['data'] == markers['newhouse']:
-                images = base64.b64decode(row[-6].encode())
+                images = base64.b64decode(row['image'].encode())
                 images = zlib.decompress(images).decode()
                 images = json.loads(images)
                 count = 0
@@ -1442,8 +1432,8 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                            data=callback_data['data']))
                 phone_num = InlineKeyboardButton(text="Показати номер телефону",
                                                  callback_data=cb_inline.new(action="phone_num_complex",
-                                                                             data=row[-3]))
-                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row[-3]))
+                                                                             data=row['rieltor_id']))
+                error = InlineKeyboardButton(text="Помилка/Поскаржитись", callback_data=cb_inline.new(action="error", data=row['rieltor_id']))
                 mar = InlineKeyboardMarkup(row_width=1).add(details, error, phone_num, share)
                 for image in images:
                     if count < len(images) and count < 9:
@@ -1497,21 +1487,21 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
                                                                reply_markup=mar)
                     elif count == len(images) or count == 9:
                         if row != last_row:
-                            markers = json.loads(row[-8])
+                            markers = json.loads(row['markers'])
                             new_building = ''
                             if 'newhouse' in markers:
                                 new_building = markers['newhouse']
                             print("images count - " + str(len(images)))
                             await bot.send_media_group(callback_query.from_user.id, media=media)
-                            await bot.send_message(callback_query.from_user.id, f"📌ID:{row[-3]}\n"
-                                                                                f"📍Розташування: {row[3]}\n"
-                                                                                f"🏢{new_building}\n"
-                                                                                f"📫{row[4]}\n"
-                                                                                f"🏢{row[7]}\n"
-                                                                                f"📈Площа: {row[8]}\n"
-                                                                                f"🛏{row[6]}\n"
-                                                                                f"💰Ціна:{row[5]}\n"
-                                                                                f"👥{row[-7]}", reply_markup=mar)
+                            await bot.send_message(callback_query.from_user.id, text=f"📌ID:{row['rieltor_id']}\n"
+                                                                                     f"📍Розташування: {row['region']}\n"
+                                                                                     f"🏢{new_building}\n"
+                                                                                     f"📫{row['street']}\n"
+                                                                                     f"🏢{row['floors']}\n"
+                                                                                     f"📈Площа: {row['meters']}\n"
+                                                                                     f"🛏{row['rooms']}\n"
+                                                                                     f"💰Ціна:{row['price']}\n"
+                                                                                     f"👥{row['agency']}", reply_markup=mar)
                         else:
                             break
                     elif count > len(images) or count > 9:
@@ -1521,19 +1511,16 @@ async def all_flats_in_complex(callback_query: types.CallbackQuery, callback_dat
 
 @dp.callback_query_handler(cb_inline.filter(action="phone_num_complex"))
 async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
-    rieltor_table = db.Table('rieltor_data', metadata, autoload=True)
-    rieltor_query = select(rieltor_table)
-    rieltor_result = connection.execute(rieltor_query)
-    rieltor_elements = rieltor_result.fetchall()
+    rieltor_elements = all_announcements.iloc
     rieltor_element = ()
     for element in rieltor_elements:
-        if element[-3] == callback_data['data']:
+        if element['rieltor_id'] == callback_data['data']:
             rieltor_element = element
             break
     new_building = ''
     announcements = check_id_form2(callback_query.from_user.id)
     if rieltor_element:
-        markers = json.loads(rieltor_element[-8])
+        markers = json.loads(rieltor_element['markers'])
         if 'newhouse' in markers:
             new_building = markers['newhouse']
     else:
@@ -1563,7 +1550,7 @@ async def phone_num_complex(callback_query: types.CallbackQuery, callback_data):
                                 callback_data=cb_inline.new(action="back_text_ann", data=callback_data['data']))
     mar = InlineKeyboardMarkup(row_width=2).add(details, error, change, stop, share,
                                                 more, back)
-    await bot.edit_message_text(rieltor_element[-1], callback_query.from_user.id,
+    await bot.edit_message_text(rieltor_element['phone_number'], callback_query.from_user.id,
                                 callback_query.message.message_id, reply_markup=mar)
 
 
@@ -1579,8 +1566,47 @@ async def details_in_complex(callback_query: types.CallbackQuery, callback_data)
                                 text="Детальніше", reply_markup=mar)
 
 
-if __name__ == "__main__":
+def open_rieltor_data():
+    global current_row, temp
+    rieltor_table = db.Table("rieltor_data", metadata, autoload_with=engine)
+    select_query = db.select(rieltor_table)
+    selection_result = connection.execute(select_query)
+    current_row = selection_result.fetchall()[0]
+    temp = 1
+
+
+def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     firebase_admin.initialize_app(cred)
     open_rieltor_data()
     create_db_control()
     executor.start_polling(dp, skip_updates=True)
+
+
+def main():
+    global all_announcements
+    annonouncement_event = threading.Event()
+
+    thread_bot = threading.Thread(target=run_bot)
+    thread_parser = threading.Thread(target=run_parser, args=(annonouncement_event,))
+
+    thread_bot.start()
+    thread_parser.start()
+
+    annonouncement_event.wait()
+
+    try:
+        while True:
+            if hasattr(annonouncement_event, 'all_announcements'):
+                all_announcements = annonouncement_event.all_announcements
+                # print(all_announcements)
+            time.sleep(5)
+    except KeyboardInterrupt:
+        # When the user interrupts the program (Ctrl+C), terminate the threads gracefully
+        thread_bot.join()
+        thread_parser.join()
+        print("\nAll threads have finished.")
+
+if __name__ == "__main__":
+    main()
