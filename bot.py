@@ -12,7 +12,7 @@ import ast
 import base64
 import threading
 import phonenumbers
-from config import metadata, connection, TOKEN, cb_inline, cred, start_message1, start_message2, engine
+from config import metadata, connection, TOKEN, cb_inline, cred, start_message1, start_message2, engine, not_checked, count_of_coins, current_row, current_num_row, temp, favorites, phone_number, count_complaints
 from settings import on_snapshot, check_id_form2, check_id_form1, check_data_from_user, filters, create_db_control
 import firebase_admin
 from firebase_admin import firestore
