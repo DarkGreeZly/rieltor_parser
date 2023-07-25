@@ -1577,7 +1577,6 @@ def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     firebase_admin.initialize_app(cred)
-    open_rieltor_data()
     create_db_control()
     executor.start_polling(dp, skip_updates=True)
 
@@ -1598,6 +1597,8 @@ def main():
         while True:
             if hasattr(annonouncement_event, 'all_announcements'):
                 all_announcements = annonouncement_event.all_announcements
+                if all_announcements:
+                    open_rieltor_data()
                 # print(all_announcements)
             time.sleep(5)
     except KeyboardInterrupt:
