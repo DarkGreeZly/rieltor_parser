@@ -1,5 +1,6 @@
 import time
 
+import pandas as pd
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 import sqlalchemy as db
@@ -23,7 +24,7 @@ from domParser import run_parser
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
-all_announcements = []
+all_announcements = pd.DataFrame()
 
 
 @dp.message_handler(commands=['start'])
